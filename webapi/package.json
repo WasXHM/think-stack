@@ -1,0 +1,22 @@
+{
+  "name": "think-stack-webapi",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20.10.0"
+  },
+  "scripts": {
+    "dev": "node --watch src/app.js",
+    "start": "node src/app.js",
+    "check": "node --check src/app.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@koa/router": "^13.1.0",
+    "dotenv": "^16.4.7",
+    "koa": "^2.16.0",
+    "koa-bodyparser": "^4.4.1",
+    "socket.io": "^4.8.1"
+  }
+}
