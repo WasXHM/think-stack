@@ -83,6 +83,33 @@ cd webapi && npm test
 cd webapp && npm test && npm run build
 ```
 
+## Next.js App Router
+
+项目现在提供单体 Next.js 入口，根目录 `package.json` 使用 `next dev`、`next build` 和 `next start`。
+
+```text
+app/
+├── layout.js                 根布局与 Providers
+├── [[...slug]]/page.js       App Router 工作区入口（支持嵌套路由刷新）
+├── not-found.js              Next 404
+└── api/
+    ├── health/route.js
+    ├── categories/route.js
+    ├── images/route.js
+    └── topics/**/route.js    Route Handlers
+lib/topic-store.js            服务端文件存储单例
+next.config.mjs               basePath=/think-stack
+```
+
+新的启动方式：
+
+```bash
+npm install
+npm run dev
+```
+
+访问 `http://127.0.0.1:3000/think-stack/`。`webapp/` 和 `webapi/` 目录保留为迁移期间的组件、存储和测试源，新的部署入口是根目录 Next 应用。Next Route Handlers 复用原有文件存储和业务方法，图片、分类、主题、外部解答及理解记录均走 `/think-stack/api/*`。
+
 详细产品范围见 [ThinkStack 第一版项目功能说明.md](./ThinkStack%20%E7%AC%AC%E4%B8%80%E7%89%88%E9%A1%B9%E7%9B%AE%E5%8A%9F%E8%83%BD%E8%AF%B4%E6%98%8E.md)。
 
 ## Markdown 编辑与截图

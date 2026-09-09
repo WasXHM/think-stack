@@ -303,7 +303,7 @@ function AppLayoutContent() {
     <div className={`app-shell${navigationCollapsed ? ' app-shell--navigation-collapsed' : ''}`}>
       <a
         className="skip-link"
-        href={`${window.location.pathname}${window.location.search}#main-content`}
+        href={`${typeof window === 'undefined' ? '/think-stack/' : window.location.pathname + window.location.search}#main-content`}
         onClick={skipToMainContent}
       >
         跳到主要内容

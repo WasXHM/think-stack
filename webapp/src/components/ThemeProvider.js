@@ -13,6 +13,9 @@ const STORAGE_KEY = 'think-stack-theme';
 const ThemeContext = createContext(null);
 
 function getInitialTheme() {
+  if (typeof window === 'undefined') {
+    return 'light';
+  }
   try {
     const saved = window.localStorage.getItem(STORAGE_KEY);
     if (saved === 'light' || saved === 'dark') {
