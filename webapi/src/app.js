@@ -10,6 +10,7 @@ import { errorHandler } from './middlewares/error-handler.js';
 import { notFound } from './middlewares/not-found.js';
 import { createTopicService } from './modules/topics/service.js';
 import router from './routers.js';
+import { createImageService } from './modules/images/service.js';
 import { createSocketServer } from './sockets/index.js';
 import { FileTopicStore } from './storage/topic-store.js';
 
@@ -86,9 +87,14 @@ export function createApplication({
   const app = new Koa();
 
   app.proxy = env.TRUST_PROXY === 'true';
+  app.context.imageService = createImageService(resolvedResourcesDirectory);
   app.context.topicStore = store;
   app.context.topicService = createTopicService(store);
   app.use(errorHandler);
+  app.use(async (ctx, next) => {
+    if (ctx.method === 'POST' && /^\/images\/?$/.test(ctx.path)) ctx.disableBodyParser = true;
+    await next();
+  });
   app.use(bodyParser({
     enableTypes: ['json'],
     jsonLimit: env.BODY_LIMIT ?? '1mb',

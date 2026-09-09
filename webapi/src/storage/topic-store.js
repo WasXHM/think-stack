@@ -153,6 +153,42 @@ export class FileTopicStore {
     });
   }
 
+  async #readCategories() {
+    try {
+      const value = await this.#readJson(join(this.resourcesDir, 'categories.json'), () => new NotFoundError('Categories not found'));
+      if (!Array.isArray(value.items) || value.items.some((item) => !item || !isUuid(item.id) || typeof item.name !== 'string' || !item.name.trim())) {
+        throw new StorageError('Invalid categories resource');
+      }
+      return [{ id: 'default', name: '默认分类' }, ...value.items];
+    } catch (error) {
+      if (error instanceof NotFoundError) return [{ id: 'default', name: '默认分类' }];
+      throw error;
+    }
+  }
+
+  async #requireCategory(categoryId) {
+    const categories = await this.#readCategories();
+    if (!categories.some((category) => category.id === categoryId)) {
+      throw new NotFoundError('分类不存在', 'CATEGORY_NOT_FOUND');
+    }
+  }
+
+  async listCategories() {
+    return this.#enqueueOperation(async () => ({ items: await this.#readCategories() }));
+  }
+
+  async createCategory({ name }) {
+    return this.#enqueueOperation(async () => {
+      const categories = await this.#readCategories();
+      if (categories.some((category) => category.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+        throw new AppError({ status: 409, code: 'CATEGORY_EXISTS', message: '分类名称已存在' });
+      }
+      const category = { id: randomUUID(), name };
+      await this.#atomicWriteJson(join(this.resourcesDir, 'categories.json'), { items: [...categories.slice(1), category] });
+      return category;
+    });
+  }
+
   async getTopic(topicId) {
     const normalizedTopicId = validateUuid(topicId, 'topicId');
     return this.#enqueueOperation(async () => {
@@ -164,11 +200,12 @@ export class FileTopicStore {
     });
   }
 
-  async createTopic({ title, question }) {
+  async createTopic({ title, question, categoryId = 'default' }) {
     return this.#enqueueOperation(async () => {
+      await this.#requireCategory(categoryId);
       const id = randomUUID();
       const timestamp = new Date().toISOString();
-      const topic = createTopicRecord({ id, title, question, timestamp });
+      const topic = createTopicRecord({ id, title, question, categoryId, timestamp });
       const topicDirectory = this.#topicDirectory(id);
 
       try {
@@ -190,6 +227,7 @@ export class FileTopicStore {
     return this.#enqueueOperation(async () => {
       try {
         const current = await this.#readTopicRecord(normalizedTopicId);
+        if (Object.hasOwn(changes, 'categoryId')) await this.#requireCategory(changes.categoryId);
         const updated = updateTopicRecord(current, changes, nextTimestamp(current.updatedAt));
         await this.#writeTopicRecord(updated);
         const [externalAnswers, understandings] = await Promise.all([

@@ -14,6 +14,7 @@ export default function Drawer({
   footer,
   busy = false,
   presentation = 'drawer',
+  lockScroll = true,
 }) {
   const panelRef = useRef(null);
   const workspaceDialog = presentation === 'workspace-dialog';
@@ -23,6 +24,7 @@ export default function Drawer({
     containerRef: panelRef,
     onClose,
     canClose: !busy,
+    lockScroll,
   });
 
   if (!open) {
@@ -30,7 +32,7 @@ export default function Drawer({
   }
 
   return createPortal(
-    <div className="overlay-layer">
+    <div className={`overlay-layer${lockScroll ? '' : ' overlay-layer--nonblocking'}`}>
       <button
         aria-label={closeLabel}
         className="overlay-backdrop"

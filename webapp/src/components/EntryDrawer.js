@@ -23,6 +23,7 @@ export default function EntryDrawer({ open, kind, entry, topicId, onClose, onSav
   const [errors, setErrors] = useState({});
   const [submitError, setSubmitError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -40,6 +41,7 @@ export default function EntryDrawer({ open, kind, entry, topicId, onClose, onSav
 
   async function submit(event) {
     event.preventDefault();
+    if (uploading || submitting) return;
     const nextErrors = {};
     const selectedSource = sourceChoice === 'Other' ? customSource.trim() : sourceChoice;
     if (!content.trim()) {
@@ -77,7 +79,7 @@ export default function EntryDrawer({ open, kind, entry, topicId, onClose, onSav
   const noun = answer ? '外部解答' : '我的理解';
   return (
     <Drawer
-      busy={submitting}
+      busy={submitting || uploading}
       description={
         answer
           ? '正文支持 Markdown；来源信息可稍后补充。'
@@ -88,8 +90,9 @@ export default function EntryDrawer({ open, kind, entry, topicId, onClose, onSav
       eyebrow={answer ? 'EXTERNAL ANSWER' : 'UNDERSTANDING'}
       footer={(
         <>
-          <Button disabled={submitting} onClick={onClose} size="large">取消</Button>
+          <Button disabled={submitting || uploading} onClick={onClose} size="large">取消</Button>
           <Button
+            disabled={uploading}
             busy={submitting}
             busyLabel="正在保存…"
             form="entry-editor-form"
@@ -103,7 +106,8 @@ export default function EntryDrawer({ open, kind, entry, topicId, onClose, onSav
       )}
       onClose={onClose}
       open={open}
-      presentation="workspace-dialog"
+      lockScroll={answer}
+      presentation={answer ? 'workspace-dialog' : 'drawer'}
       title={editing ? `编辑${noun}` : `添加${noun}`}
     >
       <form id="entry-editor-form" noValidate onSubmit={submit}>
@@ -118,6 +122,8 @@ export default function EntryDrawer({ open, kind, entry, topicId, onClose, onSav
         ) : null}
 
         <MarkdownEditor
+          disabled={submitting}
+          onUploadStateChange={setUploading}
           error={errors.content}
           fillAvailable
           helper={answer ? '可直接粘贴长文本、代码块、表格和链接。' : '写下当前判断、依据与仍然不确定的部分。'}

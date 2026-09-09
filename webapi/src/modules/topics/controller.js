@@ -1,6 +1,7 @@
 import {
   filterCreateExternalAnswer,
   filterCreateTopic,
+  filterCreateCategory,
   filterCreateUnderstanding,
   filterExternalAnswerParams,
   filterListTopicsQuery,
@@ -82,4 +83,12 @@ export async function deleteUnderstanding(ctx) {
   const { topicId, understandingId } = filterUnderstandingParams(ctx.params);
   await ctx.topicService.removeUnderstanding(topicId, understandingId);
   ctx.status = 204;
+}
+
+export async function listCategories(ctx) {
+  ctx.body = { data: await ctx.topicService.listCategories() };
+}
+export async function createCategory(ctx) {
+  ctx.body = { data: await ctx.topicService.createCategory(filterCreateCategory(ctx.request.body)) };
+  ctx.status = 201;
 }

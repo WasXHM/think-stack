@@ -97,16 +97,18 @@ export function filterListTopicsQuery(query = {}) {
 }
 
 export function filterCreateTopic(body) {
-  validateBody(body, ['title', 'question']);
+  validateBody(body, ['title', 'question', 'categoryId']);
   return {
+    categoryId: normalizeCategory(body.categoryId),
     title: requiredString(body.title, 'title', MAX_TITLE_LENGTH),
     question: requiredString(body.question, 'question', MAX_MARKDOWN_LENGTH),
   };
 }
 
 export function filterUpdateTopic(body) {
-  validateBody(body, ['title', 'question']);
+  validateBody(body, ['title', 'question', 'categoryId']);
   return requireAtLeastOneField({
+    ...(Object.hasOwn(body, 'categoryId') ? { categoryId: normalizeCategory(body.categoryId) } : {}),
     ...(Object.hasOwn(body, 'title')
       ? { title: optionalString(body, 'title', MAX_TITLE_LENGTH) }
       : {}),
@@ -168,4 +170,13 @@ export function filterUnderstandingParams(params) {
     topicId: validateUuid(params.topicId, 'topicId'),
     understandingId: validateUuid(params.understandingId, 'understandingId'),
   };
+}
+
+function normalizeCategory(value) {
+  return value == null || value === '' || value === 'default' ? 'default' : validateUuid(value, 'categoryId');
+}
+
+export function filterCreateCategory(body) {
+  validateBody(body, ['name']);
+  return { name: requiredString(body.name, 'name', 80) };
 }

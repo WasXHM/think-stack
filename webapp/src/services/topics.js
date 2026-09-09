@@ -99,3 +99,10 @@ export async function deleteUnderstanding(topicId, understandingId) {
   );
 }
 
+
+export async function listCategories({ signal } = {}) {
+  return unwrapData(await apiRequest('/categories', { signal }));
+}
+export async function createCategory(input) {
+  return unwrapData(await apiRequest('/categories', { method: 'POST', body: input }));
+}

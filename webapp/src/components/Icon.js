@@ -1,6 +1,20 @@
 import React from 'react';
 
 const paths = {
+  chevronLeft: <path d="m15 18-6-6 6-6" />,
+  chevronRight: <path d="m9 18 6-6-6-6" />,
+  bold: <path d="M7 4h6a4 4 0 0 1 0 8H7m0-8v16h7a4 4 0 0 0 0-8H7" />,
+  italic: <path d="M10 4h10M4 20h10M15 4 9 20" />,
+  strike: <><path d="M17 6c-1-3-10-3-10 2 0 2 2 3 5 4m-5 6c2 3 10 3 10-2M3 12h18" /></>,
+  quote: <path d="M4 5h6v8H4V5Zm0 8c0 4 2 6 5 6M14 5h6v8h-6V5Zm0 8c0 4 2 6 5 6" />,
+  inlineCode: <path d="m8 6-6 6 6 6m8-12 6 6-6 6M14 4l-4 16" />,
+  codeBlock: <><rect x="3" y="3" width="18" height="18" rx="2" /><path d="m9 8-4 4 4 4m6-8 4 4-4 4" /></>,
+  link: <><path d="m10 13 4-4m-6 6-2 2a4 4 0 0 1-5-5l5-5a4 4 0 0 1 6 0m0 10a4 4 0 0 0 6 0l5-5a4 4 0 0 0-5-5l-2 2" /></>,
+  image: <><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8" cy="8" r="1.5" /><path d="m3 17 5-5 4 4 4-6 5 7" /></>,
+  unorderedList: <><path d="M9 6h12M9 12h12M9 18h12" /><circle cx="4" cy="6" r=".8" /><circle cx="4" cy="12" r=".8" /><circle cx="4" cy="18" r=".8" /></>,
+  orderedList: <path d="M10 6h11M10 12h11M10 18h11M3 3h1v6M2 9h4M2 14c0-3 5-3 4 0l-4 6h4" />,
+  taskList: <><rect x="2" y="5" width="6" height="6" rx="1" /><path d="m3 8 1 1 3-3M12 8h9M12 17h9" /><rect x="2" y="14" width="6" height="6" rx="1" /></>,
+  divider: <path d="M3 12h18M7 5h10M7 19h10" />,
   alert: (
     <>
       <circle cx="12" cy="12" r="9" />
@@ -122,4 +136,3 @@ export default function Icon({ name, size = 20, className = '', ...props }) {
     </svg>
   );
 }
-

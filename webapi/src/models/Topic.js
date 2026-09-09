@@ -26,11 +26,12 @@ function timestamp(value, field) {
   return new Date(parsed).toISOString();
 }
 
-export function createTopicRecord({ id, title, question, timestamp: createdAt }) {
+export function createTopicRecord({ id, title, question, categoryId = 'default', timestamp: createdAt }) {
   return {
     id,
     title,
     question,
+    categoryId,
     createdAt,
     updatedAt: createdAt,
   };
@@ -56,6 +57,7 @@ export function deserializeTopic(value) {
     id: value.id.toLowerCase(),
     title: requiredString(value.title, 'title'),
     question: requiredString(value.question, 'question'),
+    categoryId: value.categoryId ?? 'default',
     createdAt: timestamp(value.createdAt, 'createdAt'),
     updatedAt: timestamp(value.updatedAt, 'updatedAt'),
   };
@@ -66,6 +68,7 @@ export function serializeTopic(topic) {
     id: topic.id,
     title: topic.title,
     question: topic.question,
+    categoryId: topic.categoryId ?? 'default',
     createdAt: topic.createdAt,
     updatedAt: topic.updatedAt,
   };
@@ -93,6 +96,7 @@ export function toTopicListItem(topic) {
     id: topic.id,
     title: topic.title,
     question: topic.question,
+    categoryId: topic.categoryId ?? 'default',
     questionSummary: summarizeQuestion(topic.question),
     createdAt: topic.createdAt,
     updatedAt: topic.updatedAt,

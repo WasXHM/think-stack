@@ -353,3 +353,72 @@ test('list counts child files without loading long bodies and missing collection
   assert.equal(corruptList.response.status, 500);
   assert.equal(corruptList.body.error.code, 'CORRUPT_RESOURCE');
 });
+
+test('single-level categories persist and optional topic categories support legacy records', async (t) => {
+  const api = await createTestApi(t);
+  t.after(() => rm(api.resourcesDir, { recursive: true, force: true }));
+  const initial = await request(api.baseUrl, '/categories');
+  assert.deepEqual(initial.body.data.items, [{ id: 'default', name: '默认分类' }]);
+  const created = await request(api.baseUrl, '/categories', json('POST', { name: ' 技术 ' }));
+  assert.equal(created.response.status, 201);
+  const category = created.body.data;
+  assert.equal(category.name, '技术');
+  for (const name of ['技术', '默认分类']) {
+    assert.equal((await request(api.baseUrl, '/categories', json('POST', { name }))).response.status, 409);
+  }
+  for (const body of [{ name: '子分类', parentId: category.id }, { name: ' ' }]) {
+    assert.equal((await request(api.baseUrl, '/categories', json('POST', body))).response.status, 400);
+  }
+  const topic = (await request(api.baseUrl, '/topics', json('POST', { title: '问题', question: '背景' }))).body.data;
+  assert.equal(topic.categoryId, 'default');
+  const assigned = await request(api.baseUrl, '/topics', json('POST', { title: '分类主题', question: '背景', categoryId: category.id }));
+  assert.equal(assigned.body.data.categoryId, category.id);
+  const moved = await request(api.baseUrl, `/topics/${topic.id}`, json('PATCH', { categoryId: category.id }));
+  assert.equal(moved.body.data.categoryId, category.id);
+  const reset = await request(api.baseUrl, `/topics/${topic.id}`, json('PATCH', { categoryId: null }));
+  assert.equal(reset.body.data.categoryId, 'default');
+  const invalid = await request(api.baseUrl, '/topics', json('POST', { title: '问题', question: '背景', categoryId: '11111111-1111-4111-8111-111111111111' }));
+  assert.equal(invalid.response.status, 404);
+  const topicFile = join(api.resourcesDir, 'topics', topic.id, 'topic.json');
+  const legacy = JSON.parse(await readFile(topicFile, 'utf8'));
+  delete legacy.categoryId;
+  await writeFile(topicFile, JSON.stringify(legacy));
+  await api.stop('restart');
+  const restarted = await createTestApi(t, api.resourcesDir);
+  assert.equal((await request(restarted.baseUrl, '/categories')).body.data.items[1].id, category.id);
+  const listed = (await request(restarted.baseUrl, '/topics')).body.data.items;
+  assert.equal(listed.find((item) => item.id === topic.id).categoryId, 'default');
+  assert.equal(listed.find((item) => item.id === assigned.body.data.id).categoryId, category.id);
+});
+
+test('image upload returns persistent resources usable by Markdown and rejects invalid inputs', async (t) => {
+  const api = await createTestApi(t);
+  t.after(() => rm(api.resourcesDir, { recursive: true, force: true }));
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64');
+  const upload = await request(api.baseUrl, '/images', { method: 'POST', body: png, headers: { 'content-type': 'image/png' } });
+  assert.equal(upload.response.status, 201);
+  const { path } = upload.body.data;
+  assert.match(path, /^\/images\/[\da-f-]+\.png$/);
+  const topic = await request(api.baseUrl, '/topics', json('POST', { title: '截图', question: `![截图](${path})` }));
+  assert.equal(topic.response.status, 201);
+  const image = await fetch(`${api.baseUrl}${path}`);
+  assert.equal(image.status, 200);
+  assert.equal(image.headers.get('content-type'), 'image/png');
+  assert.equal(image.headers.get('x-content-type-options'), 'nosniff');
+  assert.deepEqual(Buffer.from(await image.arrayBuffer()), png);
+  for (const [body, type, status] of [
+    [Buffer.from('{}'), 'application/json', 415],
+    [Buffer.from('<svg/>'), 'image/svg+xml', 415],
+    [Buffer.from('<html/>'), 'image/png', 400],
+    [Buffer.alloc(0), 'image/png', 400],
+    [Buffer.alloc(10 * 1024 * 1024 + 1), 'image/png', 413],
+  ]) {
+    const invalid = await request(api.baseUrl, '/images', { method: 'POST', body, headers: { 'content-type': type } });
+    assert.equal(invalid.response.status, status);
+  }
+  assert.equal((await request(api.baseUrl, '/images/not-an-image')).response.status, 400);
+  assert.equal((await request(api.baseUrl, '/images/11111111-1111-4111-8111-111111111111.png')).response.status, 404);
+  await api.stop('restart images');
+  const restarted = await createTestApi(t, api.resourcesDir);
+  assert.deepEqual(Buffer.from(await (await fetch(`${restarted.baseUrl}${path}`)).arrayBuffer()), png);
+});

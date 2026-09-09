@@ -14,6 +14,7 @@ export default function useDialogFocus({
   containerRef,
   onClose,
   canClose = true,
+  lockScroll = true,
 }) {
   const onCloseRef = useRef(onClose);
   const canCloseRef = useRef(canClose);
@@ -32,8 +33,8 @@ export default function useDialogFocus({
     const previousOverflow = document.body.style.overflow;
     const applicationRoot = document.getElementById('root');
     const previousInert = applicationRoot?.inert ?? false;
-    document.body.style.overflow = 'hidden';
-    if (applicationRoot) {
+    if (lockScroll) document.body.style.overflow = 'hidden';
+    if (lockScroll && applicationRoot) {
       applicationRoot.inert = true;
     }
 
@@ -82,12 +83,12 @@ export default function useDialogFocus({
       window.cancelAnimationFrame(focusInitial);
       document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = previousOverflow;
-      if (applicationRoot) {
+      if (lockScroll && applicationRoot) {
         applicationRoot.inert = previousInert;
       }
       if (previouslyFocused instanceof HTMLElement) {
         previouslyFocused.focus();
       }
     };
-  }, [containerRef, open]);
+  }, [containerRef, lockScroll, open]);
 }

@@ -84,3 +84,40 @@ cd webapp && npm test && npm run build
 ```
 
 详细产品范围见 [ThinkStack 第一版项目功能说明.md](./ThinkStack%20%E7%AC%AC%E4%B8%80%E7%89%88%E9%A1%B9%E7%9B%AE%E5%8A%9F%E8%83%BD%E8%AF%B4%E6%98%8E.md)。
+
+## Markdown 编辑与截图
+
+所有原始问题、外部解答和理解记录共用 `webapp/src/components/MarkdownEditor.js`。
+在正文中定位光标后使用 `⌘V` / `Ctrl+V` 粘贴剪贴板中的截图，或点击“插入图片”选择文件。
+组件上传成功后在光标处插入图片 Markdown；有选中文字时替换选区。支持一次插入多张图片。
+预览与详情页共用 `MarkdownContent`，保存后重新打开仍可查看图片。
+
+支持 PNG、JPEG、WebP，单张上限 10 MB。上传期间正文只读、保存按钮禁用；失败保留原文并显示错误，可重新粘贴重试。离开编辑器会中止进行中的上传请求。
+
+组件采用受控接口：
+
+```jsx
+<MarkdownEditor
+  label="正文"
+  value={content}
+  onChange={setContent}
+  onUploadStateChange={setUploading}
+  disabled={saving}
+/>
+```
+
+- `uploadImage(file, { signal }) => Promise<string>`：可注入其他上传服务，返回 HTTP(S) 或站点绝对路径的图片 URL；默认使用项目的图片 API。
+- `onUploadStateChange(boolean)`：通知父表单上传状态，父表单应阻止上传期间提交。
+- `maxLength`：正文长度限制，默认 500000。
+- 保留 `id`、`label`、`error`、`helper`、`required`、`placeholder`、`minHeight`、`previewOnDemand` 和 `fillAvailable`。
+
+新增图片 API：
+
+```text
+POST /images        原始二进制请求体，Content-Type 为 image/png、image/jpeg 或 image/webp
+GET  /images/:name  返回图片字节（支持 HEAD）
+```
+
+上传返回 `{ data: { path, size, contentType } }`。前端为 `path` 加上统一的 `apiPrefix`，写入 Markdown 的地址例如 `/think-stack/api/images/<uuid>.png`。图片沿用 API 代理，无需额外静态资源路由。生产网关需要允许至少 10 MB 的上传请求体。
+
+图片持久保存在 `RESOURCES_DIR/images/`，备份时与主题文件一起保留。图片使用独立 UUID 和原子写入；服务校验类型、文件签名及大小，不接受 SVG。当前不自动删除已上传图片，包括取消编辑后未引用的图片，以避免误删其他正文引用的资源。

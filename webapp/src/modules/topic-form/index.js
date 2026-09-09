@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { Button, ButtonLink } from '../../components/Button.js';
+import { useCategories } from '../../components/CategoryContext.js';
 import DateTime from '../../components/DateTime.js';
 import Icon from '../../components/Icon.js';
 import MarkdownEditor from '../../components/MarkdownEditor.js';
@@ -25,15 +26,17 @@ function validate(values) {
 
 export default function TopicFormModule({ mode }) {
   const editing = mode === 'edit';
+  const { categories, selectedCategoryId } = useCategories();
   const { topicId } = useParams();
   const navigate = useNavigate();
   const { notify } = useToast();
   const [topic, setTopic] = useState(null);
-  const [values, setValues] = useState({ title: '', question: '' });
+  const [values, setValues] = useState({ title: '', question: '', categoryId: selectedCategoryId });
   const [errors, setErrors] = useState({});
   const [loadStatus, setLoadStatus] = useState(editing ? 'loading' : 'success');
   const [loadError, setLoadError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const mountedRef = useRef(true);
 
@@ -56,7 +59,7 @@ export default function TopicFormModule({ mode }) {
     getTopic(topicId, { signal: controller.signal })
       .then((data) => {
         setTopic(data);
-        setValues({ title: data.title ?? '', question: data.question ?? '' });
+        setValues({ title: data.title ?? '', question: data.question ?? '', categoryId: data.categoryId ?? 'default' });
         setLoadStatus('success');
       })
       .catch((error) => {
@@ -68,6 +71,10 @@ export default function TopicFormModule({ mode }) {
     return () => controller.abort();
   }, [editing, topicId]);
 
+  useEffect(() => {
+    if (!editing) setValues((current) => ({ ...current, categoryId: selectedCategoryId }));
+  }, [editing, selectedCategoryId]);
+
   function updateValue(field, value) {
     setValues((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: '' }));
@@ -75,6 +82,7 @@ export default function TopicFormModule({ mode }) {
 
   async function submit(event) {
     event.preventDefault();
+    if (uploading || submitting) return;
     const nextErrors = validate(values);
     setErrors(nextErrors);
     setSubmitError('');
@@ -86,6 +94,7 @@ export default function TopicFormModule({ mode }) {
     setSubmitting(true);
     try {
       const payload = {
+        categoryId: values.categoryId,
         title: values.title.trim(),
         question: values.question.trim(),
       };
@@ -169,7 +178,16 @@ export default function TopicFormModule({ mode }) {
             {errors.title ? <p className="field__error" id="topic-title-error" role="alert">{errors.title}</p> : null}
           </div>
 
+          <div className="field">
+            <label htmlFor="topic-category">分类 <span className="field__help">（选填）</span></label>
+            <select id="topic-category" value={values.categoryId} onChange={(event) => updateValue('categoryId', event.target.value)}>
+              {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+            </select>
+            <p className="field__help">未指定分类时归入默认分类。</p>
+          </div>
           <MarkdownEditor
+            disabled={submitting}
+            onUploadStateChange={setUploading}
             error={errors.question}
             helper="支持 Markdown、代码块、表格、列表和链接。"
             id="topic-question"
@@ -183,6 +201,7 @@ export default function TopicFormModule({ mode }) {
           {submitError ? <p className="form-error" role="alert">{submitError}</p> : null}
           <div className="form-actions">
             <Button
+              disabled={uploading}
               busy={submitting}
               busyLabel={editing ? '正在保存…' : '正在创建…'}
               size="large"

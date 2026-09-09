@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import { NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
+import { CategoryProvider, useCategories } from './CategoryContext.js';
 import useDialogFocus from '../hooks/useDialogFocus.js';
 import { listTopics } from '../services/topics.js';
 import { getErrorMessage } from '../utils/format.js';
@@ -39,6 +40,7 @@ function compareTopicsByCreatedAt(left, right) {
 }
 
 function TopicNavigation({ error, items, onNavigate, onRetry, status }) {
+  const { categories, selectedCategoryId, selectCategory, expanded, toggleCategory, loadError, refresh } = useCategories();
   return (
     <div className="navigation-topics">
       <div className="navigation-topics__heading">
@@ -61,27 +63,27 @@ function TopicNavigation({ error, items, onNavigate, onRetry, status }) {
         </div>
       ) : null}
 
-      {status === 'success' && items.length === 0 ? (
-        <p className="navigation-topics__empty">还没有已添加的主题</p>
-      ) : null}
-
-      {status === 'success' && items.length > 0 ? (
-        <ul aria-label="已添加的主题" className="navigation-topic-list">
-          {items.map((topic, index) => (
-            <li key={topic.id}>
-              <NavLink
-                className={({ isActive }) => `navigation-topic-link ${isActive ? 'is-active' : ''}`}
-                onClick={onNavigate}
-                title={topic.title}
-                to={`/topics/${topic.id}`}
-              >
-                <span aria-hidden="true" className="navigation-topic-link__index">
-                  {String(index + 1).padStart(2, '0')}
-                </span>
-                <span className="navigation-topic-link__title">{topic.title}</span>
-              </NavLink>
-            </li>
-          ))}
+      {loadError ? <div role="alert" className="navigation-topics__state">{loadError}<Button onClick={refresh}>重试</Button></div> : null}
+      {status === 'success' ? (
+        <ul aria-label="主题分类" className="navigation-topic-list">
+          {categories.map((category) => {
+            const topics = items.filter((topic) => (topic.categoryId ?? 'default') === category.id);
+            const isExpanded = expanded.includes(category.id);
+            return <li key={category.id}>
+              <div className={`navigation-category ${selectedCategoryId === category.id ? 'is-selected' : ''}`}>
+                <button type="button" className="category-toggle" aria-label={`${isExpanded ? '收起' : '展开'}${category.name}`} aria-expanded={isExpanded} onClick={() => toggleCategory(category.id)}>{isExpanded ? '▾' : '▸'}</button>
+                <button type="button" className="category-select" aria-pressed={selectedCategoryId === category.id} onClick={() => selectCategory(category.id)}><span>{category.name}</span><small>{topics.length}</small></button>
+              </div>
+              {isExpanded ? <ul className="navigation-category-topics">
+                {topics.map((topic, index) => <li key={topic.id}>
+                  <NavLink className={({ isActive }) => `navigation-topic-link ${isActive ? 'is-active' : ''}`} onClick={() => { selectCategory(category.id); onNavigate?.(); }} title={topic.title} to={`/topics/${topic.id}`}>
+                    <span aria-hidden="true" className="navigation-topic-link__index">{String(index + 1).padStart(2, '0')}</span><span className="navigation-topic-link__title">{topic.title}</span>
+                  </NavLink>
+                </li>)}
+                {!topics.length ? <li className="navigation-topics__empty">暂无主题</li> : null}
+              </ul> : null}
+            </li>;
+          })}
         </ul>
       ) : null}
     </div>
@@ -89,6 +91,7 @@ function TopicNavigation({ error, items, onNavigate, onRetry, status }) {
 }
 
 function Navigation({ onNavigate, onRetryTopics, topicIndex }) {
+  const { openCreateCategory } = useCategories();
   return (
     <nav aria-label="主导航" className="primary-navigation">
       <p className="navigation-label">工作区</p>
@@ -108,6 +111,7 @@ function Navigation({ onNavigate, onRetryTopics, topicIndex }) {
         onRetry={onRetryTopics}
         status={topicIndex.status}
       />
+      <div className="navigation-create-actions">
       <NavLink
         className={({ isActive }) => `navigation-link ${isActive ? 'is-active' : ''}`}
         onClick={onNavigate}
@@ -116,14 +120,16 @@ function Navigation({ onNavigate, onRetryTopics, topicIndex }) {
         <Icon name="plus" size={19} />
         <span>新建思考</span>
       </NavLink>
+      <button type="button" className="navigation-link" onClick={() => { onNavigate?.(); openCreateCategory(); }}>新建分类</button>
+      </div>
     </nav>
   );
 }
 
-function Sidebar({ onRetryTopics, topicIndex }) {
+function Sidebar({ collapsed, onToggle, onRetryTopics, topicIndex }) {
   return (
-    <aside className="sidebar">
-      <Brand />
+    <aside className={`sidebar${collapsed ? ' sidebar--collapsed' : ''}`}>
+      <div className="sidebar__brand-row"><Brand /><IconButton icon={collapsed ? 'chevronRight' : 'chevronLeft'} label={collapsed ? '展开导航栏' : '收起导航栏'} onClick={onToggle} /></div>
       <Navigation onRetryTopics={onRetryTopics} topicIndex={topicIndex} />
       <div className="sidebar__note">
         <p>问题留下来，理解继续生长。</p>
@@ -270,8 +276,9 @@ function GlobalSearch() {
   );
 }
 
-export default function AppLayout() {
+function AppLayoutContent() {
   const [navigationOpen, setNavigationOpen] = useState(false);
+  const [navigationCollapsed, setNavigationCollapsed] = useState(false);
   const location = useLocation();
   const { refreshTopicIndex, topicIndex } = useTopicIndex(location.pathname);
   const closeNavigation = useCallback(() => setNavigationOpen(false), []);
@@ -293,7 +300,7 @@ export default function AppLayout() {
   }
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell${navigationCollapsed ? ' app-shell--navigation-collapsed' : ''}`}>
       <a
         className="skip-link"
         href={`${window.location.pathname}${window.location.search}#main-content`}
@@ -301,7 +308,7 @@ export default function AppLayout() {
       >
         跳到主要内容
       </a>
-      <Sidebar onRetryTopics={retryTopics} topicIndex={topicIndex} />
+      <Sidebar collapsed={navigationCollapsed} onToggle={() => setNavigationCollapsed((value) => !value)} onRetryTopics={retryTopics} topicIndex={topicIndex} />
       <MobileNavigation
         onClose={closeNavigation}
         onRetryTopics={retryTopics}
@@ -339,4 +346,8 @@ export default function AppLayout() {
       </div>
     </div>
   );
+}
+
+export default function AppLayout() {
+  return <CategoryProvider><AppLayoutContent /></CategoryProvider>;
 }

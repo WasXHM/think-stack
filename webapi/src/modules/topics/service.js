@@ -1,5 +1,7 @@
 export function createTopicService(topicStore) {
   return {
+    listCategories() { return topicStore.listCategories(); },
+    createCategory(input) { return topicStore.createCategory(input); },
     list(input) {
       return topicStore.listTopics(input);
     },

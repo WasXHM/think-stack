@@ -1,3 +1,4 @@
+import { useCategories } from '../../components/CategoryContext.js';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 
@@ -94,6 +95,7 @@ export default function HomeModule() {
   usePageTitle('思考主题');
   const { notify } = useToast();
   const { refreshTopicIndex } = useOutletContext();
+  const { openCreateCategory } = useCategories();
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('q') ?? '';
   const [searchValue, setSearchValue] = useState(query);
@@ -165,10 +167,13 @@ export default function HomeModule() {
     <div className="page home-page">
       <PageHeader
         actions={(
+          <div className="navigation-create-actions">
           <ButtonLink to="/topics/new" variant="primary">
             <Icon name="plus" size={18} />
             新建思考
           </ButtonLink>
+          <Button onClick={openCreateCategory} variant="secondary">新建分类</Button>
+          </div>
         )}
         description="按问题保存外部资料与自己的阶段性理解。"
         eyebrow="THINKSTACK / 思栈"
