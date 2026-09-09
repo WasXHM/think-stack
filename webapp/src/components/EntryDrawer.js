@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import {
   createExternalAnswer,
@@ -11,6 +11,7 @@ import { Button } from './Button.js';
 import Drawer from './Drawer.js';
 import Icon from './Icon.js';
 import MarkdownEditor from './MarkdownEditor.js';
+import { clearEntryDraft, readEntryDraft, saveEntryDraft } from '../utils/entry-drafts.js';
 
 const SOURCE_OPTIONS = ['ChatGPT', 'DeepSeek', 'Claude', 'Gemini', 'Article'];
 
@@ -24,20 +25,35 @@ export default function EntryDrawer({ open, kind, entry, topicId, onClose, onSav
   const [submitError, setSubmitError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const draftReadyRef = useRef(false);
 
   useEffect(() => {
     if (!open) {
+      draftReadyRef.current = false;
       return;
     }
     const savedSource = entry?.source === '未注明来源' ? '' : entry?.source ?? '';
     const knownSource = SOURCE_OPTIONS.includes(savedSource);
-    setSourceChoice(knownSource ? savedSource : savedSource ? 'Other' : '');
-    setCustomSource(knownSource ? '' : savedSource);
-    setContent(entry?.content ?? '');
+    const draft = !editing ? readEntryDraft(topicId, kind) : null;
+    setSourceChoice(draft?.sourceChoice ?? (knownSource ? savedSource : savedSource ? 'Other' : ''));
+    setCustomSource(draft?.customSource ?? (knownSource ? '' : savedSource));
+    setContent(draft?.content ?? entry?.content ?? '');
     setErrors({});
     setSubmitError('');
     setSubmitting(false);
-  }, [entry, open]);
+    draftReadyRef.current = !editing;
+  }, [editing, entry, kind, open, topicId]);
+
+  useEffect(() => {
+    if (!open || editing || !draftReadyRef.current) return;
+    saveEntryDraft(topicId, kind, { content, sourceChoice, customSource });
+  }, [content, customSource, editing, kind, open, sourceChoice, topicId]);
+
+  function handleClose() {
+    if (!editing) clearEntryDraft(topicId, kind);
+    draftReadyRef.current = false;
+    onClose();
+  }
 
   async function submit(event) {
     event.preventDefault();
@@ -69,6 +85,7 @@ export default function EntryDrawer({ open, kind, entry, topicId, onClose, onSav
           ? await updateUnderstanding(topicId, entry.id, input)
           : await createUnderstanding(topicId, input);
       }
+      if (!editing) clearEntryDraft(topicId, kind);
       await onSaved(saved, { kind, editing });
     } catch (error) {
       setSubmitError(getErrorMessage(error, '内容没有保存，请重新尝试。'));
@@ -90,7 +107,7 @@ export default function EntryDrawer({ open, kind, entry, topicId, onClose, onSav
       eyebrow={answer ? 'EXTERNAL ANSWER' : 'UNDERSTANDING'}
       footer={(
         <>
-          <Button disabled={submitting || uploading} onClick={onClose} size="large">取消</Button>
+          <Button disabled={submitting || uploading} onClick={handleClose} size="large">取消</Button>
           <Button
             disabled={uploading}
             busy={submitting}
@@ -104,7 +121,7 @@ export default function EntryDrawer({ open, kind, entry, topicId, onClose, onSav
           </Button>
         </>
       )}
-      onClose={onClose}
+      onClose={handleClose}
       open={open}
       lockScroll={answer}
       presentation={answer ? 'workspace-dialog' : 'drawer'}
