@@ -3,6 +3,26 @@
     {
       "id": "1977d6ba-801a-46b1-8db6-c08a6d106a82",
       "name": "Next.js"
+    },
+    {
+      "id": "08bc35f3-f76a-4192-ba9c-24d87999a0b8",
+      "name": "Monorepo"
+    },
+    {
+      "id": "cad10ca7-34f8-4941-89c7-39f162b6dacc",
+      "name": "MCP·SKILL·AGENT"
+    },
+    {
+      "id": "3e332309-227d-450e-bad3-e24c0078e4c0",
+      "name": "LangChain · LangGraph"
+    },
+    {
+      "id": "cdd093cc-9842-4972-9434-c8e54a7dc952",
+      "name": "MCP -> CLI"
+    },
+    {
+      "id": "0732701e-9823-442e-b755-df3c4cbd27cf",
+      "name": "Agent ReAct 模式"
     }
   ]
 }
