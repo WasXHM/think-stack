@@ -1,3 +1,4 @@
+import { useAuth } from './AuthContext.js';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { createCategory, listCategories } from '../services/topics.js';
 import { getErrorMessage } from '../utils/format.js';
@@ -8,6 +9,7 @@ const Context = createContext(null);
 export const useCategories = () => useContext(Context);
 
 export function CategoryProvider({ children }) {
+  const { canEdit } = useAuth();
   const [categories, setCategories] = useState([{ id: 'default', name: '默认分类' }]);
   const [selectedCategoryId, selectCategory] = useState('default');
   const [expanded, setExpanded] = useState(['default']);
@@ -40,7 +42,7 @@ export function CategoryProvider({ children }) {
     toggleCategory: (id) => setExpanded((current) => current.includes(id) ? current.filter((value) => value !== id) : [...current, id]),
     openCreateCategory: () => { setName(''); setError(''); setOpen(true); }, loadError, refresh }}>
     {children}
-    <Drawer open={open} onClose={() => setOpen(false)} title="新建分类" description="分类仅支持单层结构。" busy={busy} presentation="workspace-dialog">
+    <Drawer open={canEdit && open} onClose={() => setOpen(false)} title="新建分类" description="分类仅支持单层结构。" busy={busy} presentation="workspace-dialog">
       <form onSubmit={submit}>
         <div className="field"><label htmlFor="category-name">分类名称</label>
           <input id="category-name" value={name} maxLength={80} onChange={(event) => setName(event.target.value)} autoComplete="off" disabled={busy} />

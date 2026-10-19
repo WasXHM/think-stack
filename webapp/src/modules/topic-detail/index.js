@@ -1,3 +1,4 @@
+import { useAuth } from '../../components/AuthContext.js';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 
@@ -20,6 +21,8 @@ import {
 import { formatDate, getErrorMessage } from '../../utils/format.js';
 
 function EntryActions({ label, onEdit, onDelete }) {
+  const { canEdit } = useAuth();
+  if (!canEdit) return null;
   return (
     <div className="entry-actions">
       <IconButton icon="edit" label={`编辑${label}`} onClick={onEdit} />
@@ -79,6 +82,7 @@ function UnderstandingEntry({ entry, index, onEdit, onDelete }) {
 }
 
 function SectionHeading({ eyebrow, title, count, actionLabel, onAction, id }) {
+  const { canEdit } = useAuth();
   return (
     <div className="section-heading section-heading--detail">
       <div>
@@ -86,15 +90,16 @@ function SectionHeading({ eyebrow, title, count, actionLabel, onAction, id }) {
         <h2 id={id}>{title}</h2>
         <span>{count} 条记录</span>
       </div>
-      <Button onClick={onAction} size="small" variant="secondary">
+      {canEdit && <Button onClick={onAction} size="small" variant="secondary">
         <Icon name="plus" size={17} />
         {actionLabel}
-      </Button>
+      </Button>}
     </div>
   );
 }
 
 export default function TopicDetailModule() {
+  const { canEdit } = useAuth();
   const { topicId } = useParams();
   const navigate = useNavigate();
   const { refreshTopicIndex } = useOutletContext();
@@ -256,7 +261,7 @@ export default function TopicDetailModule() {
   return (
     <div className="page topic-detail-page">
       <PageHeader
-        actions={(
+        actions={canEdit && (
           <ButtonLink to={`/topics/${topicId}/edit`} variant="secondary">
             <Icon name="edit" size={17} />
             编辑主题
@@ -302,7 +307,7 @@ export default function TopicDetailModule() {
               </div>
             ) : (
               <StatePanel
-                action={() => setEditor({ kind: 'answer', entry: null })}
+                action={canEdit ? () => setEditor({ kind: 'answer', entry: null }) : undefined}
                 actionLabel="添加第一条解答"
                 compact
                 description="把来自模型、文章或技术社区的回答作为独立记录保存在这里。"
@@ -336,7 +341,7 @@ export default function TopicDetailModule() {
               </div>
             ) : (
               <StatePanel
-                action={() => setEditor({ kind: 'understanding', entry: null })}
+                action={canEdit ? () => setEditor({ kind: 'understanding', entry: null }) : undefined}
                 actionLabel="记录第一版理解"
                 compact
                 description="当你形成阶段性判断后，把依据、不确定处和当前结论记录下来。"
@@ -365,7 +370,7 @@ export default function TopicDetailModule() {
             <button onClick={() => moveToSection('external-answers')} type="button"><span>02</span>外部解答</button>
             <button onClick={() => moveToSection('understandings')} type="button"><span>03</span>我的理解</button>
           </nav>
-          <div className="topic-quick-actions">
+          {canEdit && <><div className="topic-quick-actions">
             <Button onClick={() => setEditor({ kind: 'understanding', entry: null })} variant="primary">
               <Icon name="plus" size={17} />添加我的理解
             </Button>
@@ -380,7 +385,7 @@ export default function TopicDetailModule() {
           >
             <Icon name="trash" size={17} />
             删除此主题
-          </button>
+          </button></>}
         </aside>
       </div>
 
@@ -389,7 +394,7 @@ export default function TopicDetailModule() {
         kind={editor?.kind ?? 'answer'}
         onClose={() => setEditor(null)}
         onSaved={handleSaved}
-        open={Boolean(editor)}
+        open={canEdit && Boolean(editor)}
         topicId={topicId}
       />
       <ConfirmDialog
@@ -397,7 +402,7 @@ export default function TopicDetailModule() {
         description={deleteDescription()}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={confirmDelete}
-        open={Boolean(deleteTarget)}
+        open={canEdit && Boolean(deleteTarget)}
         title={deleteTarget?.kind === 'topic' ? `删除“${topic.title}”？` : '删除这条记录？'}
       />
     </div>

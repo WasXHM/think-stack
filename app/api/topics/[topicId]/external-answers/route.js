@@ -1,5 +1,8 @@
+import { withWriteAuth } from '../../../../../lib/auth.js';
 import { getTopicStore } from '../../../../../lib/topic-store.js';
 
-export async function POST(request, { params }) {
+async function handlePOST(request, { params }) {
   return Response.json({ data: await getTopicStore().createExternalAnswer(params.topicId, await request.json()) }, { status: 201 });
 }
+
+export const POST = withWriteAuth(handlePOST);

@@ -6,7 +6,10 @@ import topicsRouter from './modules/topics/routes.js';
 
 import { listCategories, createCategory } from './modules/topics/controller.js';
 
+import authRouter from './modules/auth/routes.js';
+
 const router = new Router();
+router.use(authRouter.routes(), authRouter.allowedMethods({ throw: true }));
 router.get('/categories', listCategories);
 router.post('/categories', createCategory);
 

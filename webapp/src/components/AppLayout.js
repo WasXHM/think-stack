@@ -1,3 +1,4 @@
+import { AuthProvider, AuthControl, useAuth } from './AuthContext.js';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
@@ -92,6 +93,7 @@ function TopicNavigation({ error, items, onNavigate, onRetry, status }) {
 
 function Navigation({ onNavigate, onRetryTopics, topicIndex }) {
   const { openCreateCategory } = useCategories();
+  const { canEdit } = useAuth();
   return (
     <nav aria-label="主导航" className="primary-navigation">
       <p className="navigation-label">工作区</p>
@@ -111,7 +113,7 @@ function Navigation({ onNavigate, onRetryTopics, topicIndex }) {
         onRetry={onRetryTopics}
         status={topicIndex.status}
       />
-      <div className="navigation-create-actions">
+      {canEdit && <div className="navigation-create-actions">
       <NavLink
         className={({ isActive }) => `navigation-link ${isActive ? 'is-active' : ''}`}
         onClick={onNavigate}
@@ -121,7 +123,7 @@ function Navigation({ onNavigate, onRetryTopics, topicIndex }) {
         <span>新建思考</span>
       </NavLink>
       <button type="button" className="navigation-link" onClick={() => { onNavigate?.(); openCreateCategory(); }}>新建分类</button>
-      </div>
+      </div>}
     </nav>
   );
 }
@@ -338,6 +340,7 @@ function AppLayoutContent() {
               <Icon name="search" size={18} />
             </NavLink>
             <ThemeToggle />
+            <AuthControl />
           </div>
         </header>
         <main className="main-content" id="main-content" tabIndex="-1">
@@ -349,5 +352,5 @@ function AppLayoutContent() {
 }
 
 export default function AppLayout() {
-  return <CategoryProvider><AppLayoutContent /></CategoryProvider>;
+  return <AuthProvider><CategoryProvider><AppLayoutContent /></CategoryProvider></AuthProvider>;
 }

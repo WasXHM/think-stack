@@ -13,6 +13,8 @@ const quietLogger = {
   error() {},
 };
 
+const sessions = new Map();
+
 async function createTestApi(t, existingResourcesDir) {
   const resourcesDir = existingResourcesDir ?? await mkdtemp(join(tmpdir(), 'think-stack-api-'));
   const runtime = createApplication({ resourcesDir, logger: quietLogger });
@@ -24,6 +26,9 @@ async function createTestApi(t, existingResourcesDir) {
     await runtime.stop('test cleanup');
   });
 
+  const login = await fetch(`${baseUrl}/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json', 'x-thinkstack-request': '1' }, body: JSON.stringify({ username: 'admin', password: 'Xhm775894' }) });
+  assert.equal(login.status, 200);
+  sessions.set(baseUrl, login.headers.get('set-cookie').split(';')[0]);
   return { ...runtime, baseUrl, resourcesDir };
 }
 
@@ -31,6 +36,8 @@ async function request(baseUrl, path, options = {}) {
   const response = await fetch(`${baseUrl}${path}`, {
     ...options,
     headers: {
+      cookie: sessions.get(baseUrl),
+      'x-thinkstack-request': '1',
       ...(options.body ? { 'content-type': 'application/json' } : {}),
       ...options.headers,
     },

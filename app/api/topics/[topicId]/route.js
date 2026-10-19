@@ -1,14 +1,18 @@
+import { withWriteAuth } from '../../../../lib/auth.js';
 import { getTopicStore } from '../../../../lib/topic-store.js';
 
 export async function GET(_request, { params }) {
   return Response.json({ data: await getTopicStore().getTopic(params.topicId) });
 }
 
-export async function PATCH(request, { params }) {
+async function handlePATCH(request, { params }) {
   return Response.json({ data: await getTopicStore().updateTopic(params.topicId, await request.json()) });
 }
 
-export async function DELETE(_request, { params }) {
+async function handleDELETE(_request, { params }) {
   await getTopicStore().deleteTopic(params.topicId);
   return new Response(null, { status: 204 });
 }
+
+export const PATCH = withWriteAuth(handlePATCH);
+export const DELETE = withWriteAuth(handleDELETE);

@@ -2499,3 +2499,5 @@ button:disabled {
   cursor: pointer;
 }
 .markdown-editor__upload-status { margin: 0; flex-shrink: 0; }
+
+.auth-control { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }

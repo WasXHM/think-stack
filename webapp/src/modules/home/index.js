@@ -1,3 +1,4 @@
+import { useAuth } from '../../components/AuthContext.js';
 import { useCategories } from '../../components/CategoryContext.js';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
@@ -41,6 +42,7 @@ function CountStrip({ topics, total, filtered }) {
 }
 
 function TopicRow({ topic, onDelete }) {
+  const { canEdit } = useAuth();
   const answerCount = Number(topic.externalAnswerCount ?? topic.externalAnswers?.length ?? 0);
   const understandingCount = Number(topic.understandingCount ?? topic.understandings?.length ?? 0);
   const summary = topic.questionSummary || summarizeText(topic.question);
@@ -61,7 +63,7 @@ function TopicRow({ topic, onDelete }) {
         </div>
       </div>
       <div className="topic-row__actions">
-        <Link
+        {canEdit && <><Link
           aria-label={`编辑“${topic.title}”`}
           className="icon-button"
           title="编辑主题"
@@ -77,7 +79,7 @@ function TopicRow({ topic, onDelete }) {
           type="button"
         >
           <Icon name="trash" size={18} />
-        </button>
+        </button></>}
         <Link
           aria-label={`打开“${topic.title}”`}
           className="topic-row__open"
@@ -92,6 +94,7 @@ function TopicRow({ topic, onDelete }) {
 }
 
 export default function HomeModule() {
+  const { canEdit } = useAuth();
   usePageTitle('思考主题');
   const { notify } = useToast();
   const { refreshTopicIndex } = useOutletContext();
@@ -166,7 +169,7 @@ export default function HomeModule() {
   return (
     <div className="page home-page">
       <PageHeader
-        actions={(
+        actions={canEdit && (
           <div className="navigation-create-actions">
           <ButtonLink to="/topics/new" variant="primary">
             <Icon name="plus" size={18} />
@@ -244,7 +247,7 @@ export default function HomeModule() {
           ) : (
             <StatePanel
               actionLabel="新建思考"
-              actionTo="/topics/new"
+              actionTo={canEdit ? "/topics/new" : undefined}
               description="先记录一个真实问题，再逐步补充外部解答和自己的理解。"
               icon="book"
               title="还没有思考主题"
@@ -263,7 +266,7 @@ export default function HomeModule() {
         ) : null}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={confirmDelete}
-        open={Boolean(deleteTarget)}
+        open={canEdit && Boolean(deleteTarget)}
         title={deleteTarget ? `删除“${deleteTarget.title}”？` : '删除主题？'}
       />
     </div>

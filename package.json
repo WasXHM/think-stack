@@ -7,7 +7,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "npm --prefix webapp test && npm --prefix webapi test"
+    "test": "npm --prefix webapp test && npm --prefix webapi test",
+    "deploy": "bash scripts/deploy.sh",
+    "import:resources": "bash scripts/import-resources.sh"
   },
   "dependencies": {
     "next": "^14.2.30",

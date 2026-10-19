@@ -33,6 +33,7 @@ async function parseResponse(response) {
 export async function apiRequest(path, options = {}) {
   const { body, headers: providedHeaders, ...requestOptions } = options;
   const headers = new Headers(providedHeaders);
+  if (!['GET', 'HEAD'].includes((options.method ?? 'GET').toUpperCase())) headers.set('x-thinkstack-request', '1');
   let requestBody = body;
 
   if (
@@ -66,6 +67,7 @@ export async function apiRequest(path, options = {}) {
   const payload = await parseResponse(response);
 
   if (!response.ok) {
+    if (response.status === 401 && path !== '/auth/login' && typeof window !== 'undefined') window.dispatchEvent(new Event('thinkstack:unauthorized'));
     const serverError = payload?.error;
     throw new ApiError(
       serverError?.message ?? `请求未完成（HTTP ${response.status}）。`,

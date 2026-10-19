@@ -10,6 +10,7 @@ import { errorHandler } from './middlewares/error-handler.js';
 import { notFound } from './middlewares/not-found.js';
 import { createTopicService } from './modules/topics/service.js';
 import router from './routers.js';
+import { createAuthService, COOKIE, requireWriteHeader, unauthorized } from './modules/auth/service.js';
 import { createImageService } from './modules/images/service.js';
 import { createSocketServer } from './sockets/index.js';
 import { FileTopicStore } from './storage/topic-store.js';
@@ -87,10 +88,20 @@ export function createApplication({
   const app = new Koa();
 
   app.proxy = env.TRUST_PROXY === 'true';
+  app.context.authService = createAuthService(resolvedResourcesDirectory);
   app.context.imageService = createImageService(resolvedResourcesDirectory);
   app.context.topicStore = store;
   app.context.topicService = createTopicService(store);
   app.use(errorHandler);
+  app.use(async (ctx, next) => {
+    ctx.state.user = await ctx.authService.getUser(ctx.cookies.get(COOKIE) ?? '');
+    if (ctx.path.startsWith('/auth')) ctx.set('Cache-Control', 'no-store');
+    if (!['GET', 'HEAD', 'OPTIONS'].includes(ctx.method)) {
+      if (!['/auth/login', '/auth/logout'].includes(ctx.path) && !ctx.state.user) throw unauthorized();
+      requireWriteHeader(ctx.get('x-thinkstack-request'));
+    }
+    await next();
+  });
   app.use(async (ctx, next) => {
     if (ctx.method === 'POST' && /^\/images\/?$/.test(ctx.path)) ctx.disableBodyParser = true;
     await next();
@@ -129,6 +140,7 @@ export function createApplication({
     }
 
     await store.initialize();
+    await app.context.authService.initialize();
     const normalizedPort = parsePort(port);
 
     await new Promise((resolveStart, reject) => {

@@ -1,3 +1,4 @@
+import { RequireEditor } from './components/AuthContext.js';
 import React, { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
 
@@ -29,9 +30,9 @@ export default function AppRoutes() {
     <Routes>
       <Route element={<AppLayout />}>
         <Route index element={<SuspendedRoute><HomeModule /></SuspendedRoute>} />
-        <Route path="topics/new" element={<SuspendedRoute><TopicFormModule mode="create" /></SuspendedRoute>} />
+        <Route path="topics/new" element={<SuspendedRoute><RequireEditor><TopicFormModule mode="create" /></RequireEditor></SuspendedRoute>} />
         <Route path="topics/:topicId" element={<SuspendedRoute><TopicDetailModule /></SuspendedRoute>} />
-        <Route path="topics/:topicId/edit" element={<SuspendedRoute><TopicFormModule mode="edit" /></SuspendedRoute>} />
+        <Route path="topics/:topicId/edit" element={<SuspendedRoute><RequireEditor><TopicFormModule mode="edit" /></RequireEditor></SuspendedRoute>} />
         <Route path="*" element={<SuspendedRoute><NotFoundModule /></SuspendedRoute>} />
       </Route>
     </Routes>
