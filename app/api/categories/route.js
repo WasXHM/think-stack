@@ -1,3 +1,4 @@
+import { filterCategoryOrder } from '../../../webapi/src/modules/topics/filter.js';
 import { withWriteAuth } from '../../../lib/auth.js';
 import { getTopicStore } from '../../../lib/topic-store.js';
 
@@ -10,3 +11,7 @@ async function handlePOST(request) {
 }
 
 export const POST = withWriteAuth(handlePOST);
+
+export const PATCH = withWriteAuth(async (request) => {
+  return Response.json({ data: await getTopicStore().reorderCategories(filterCategoryOrder(await request.json())) });
+});

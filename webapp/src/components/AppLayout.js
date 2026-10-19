@@ -1,3 +1,4 @@
+import CategoryMenu from './CategoryMenu.js';
 import { AuthProvider, AuthControl, useAuth } from './AuthContext.js';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -74,6 +75,7 @@ function TopicNavigation({ error, items, onNavigate, onRetry, status }) {
               <div className={`navigation-category ${selectedCategoryId === category.id ? 'is-selected' : ''}`}>
                 <button type="button" className="category-toggle" aria-label={`${isExpanded ? '收起' : '展开'}${category.name}`} aria-expanded={isExpanded} onClick={() => toggleCategory(category.id)}>{isExpanded ? '▾' : '▸'}</button>
                 <button type="button" className="category-select" aria-pressed={selectedCategoryId === category.id} onClick={() => selectCategory(category.id)}><span>{category.name}</span><small>{topics.length}</small></button>
+                <CategoryMenu category={category} onNavigate={onNavigate} />
               </div>
               {isExpanded ? <ul className="navigation-category-topics">
                 {topics.map((topic, index) => <li key={topic.id}>
@@ -92,7 +94,7 @@ function TopicNavigation({ error, items, onNavigate, onRetry, status }) {
 }
 
 function Navigation({ onNavigate, onRetryTopics, topicIndex }) {
-  const { openCreateCategory } = useCategories();
+  const { openCreateCategory, openCategoryOrder } = useCategories();
   const { canEdit } = useAuth();
   return (
     <nav aria-label="主导航" className="primary-navigation">
@@ -114,15 +116,8 @@ function Navigation({ onNavigate, onRetryTopics, topicIndex }) {
         status={topicIndex.status}
       />
       {canEdit && <div className="navigation-create-actions">
-      <NavLink
-        className={({ isActive }) => `navigation-link ${isActive ? 'is-active' : ''}`}
-        onClick={onNavigate}
-        to="/topics/new"
-      >
-        <Icon name="plus" size={19} />
-        <span>新建思考</span>
-      </NavLink>
       <button type="button" className="navigation-link" onClick={() => { onNavigate?.(); openCreateCategory(); }}>新建分类</button>
+      <button type="button" className="navigation-link" onClick={() => { onNavigate?.(); openCategoryOrder(); }}>分类排序</button>
       </div>}
     </nav>
   );
@@ -185,7 +180,7 @@ function MobileNavigation({ open, onClose, onRetryTopics, topicIndex }) {
   );
 }
 
-function useTopicIndex(pathname) {
+function useTopicIndex(pathname, categoryRevision) {
   const [topicIndex, setTopicIndex] = useState({
     items: [],
     status: 'loading',
@@ -231,7 +226,7 @@ function useTopicIndex(pathname) {
   useEffect(() => {
     void refreshTopicIndex();
     return () => activeRequestRef.current?.abort();
-  }, [pathname, refreshTopicIndex]);
+  }, [pathname, categoryRevision, refreshTopicIndex]);
 
   return { refreshTopicIndex, topicIndex };
 }
@@ -282,7 +277,8 @@ function AppLayoutContent() {
   const [navigationOpen, setNavigationOpen] = useState(false);
   const [navigationCollapsed, setNavigationCollapsed] = useState(false);
   const location = useLocation();
-  const { refreshTopicIndex, topicIndex } = useTopicIndex(location.pathname);
+  const { categoryRevision } = useCategories();
+  const { refreshTopicIndex, topicIndex } = useTopicIndex(location.pathname, categoryRevision);
   const closeNavigation = useCallback(() => setNavigationOpen(false), []);
   const retryTopics = useCallback(
     () => refreshTopicIndex({ showLoading: true }),

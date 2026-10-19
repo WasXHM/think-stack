@@ -159,7 +159,11 @@ export class FileTopicStore {
       if (!Array.isArray(value.items) || value.items.some((item) => !item || !isUuid(item.id) || typeof item.name !== 'string' || !item.name.trim())) {
         throw new StorageError('Invalid categories resource');
       }
-      return [{ id: 'default', name: '默认分类' }, ...value.items];
+      const items = [{ id: 'default', name: '默认分类' }, ...value.items];
+      if (!Array.isArray(value.order)) return items;
+      const byId = new Map(items.map((item) => [item.id, item]));
+      const ids = [...new Set([...value.order, ...items.map((item) => item.id)])];
+      return ids.filter((id) => byId.has(id)).map((id) => byId.get(id));
     } catch (error) {
       if (error instanceof NotFoundError) return [{ id: 'default', name: '默认分类' }];
       throw error;
@@ -184,8 +188,54 @@ export class FileTopicStore {
         throw new AppError({ status: 409, code: 'CATEGORY_EXISTS', message: '分类名称已存在' });
       }
       const category = { id: randomUUID(), name };
-      await this.#atomicWriteJson(join(this.resourcesDir, 'categories.json'), { items: [...categories.slice(1), category] });
+      await this.#atomicWriteJson(join(this.resourcesDir, 'categories.json'), { items: [...categories.filter((item) => item.id !== 'default'), category], order: [...categories.map((item) => item.id), category.id] });
       return category;
+    });
+  }
+
+  async renameCategory(categoryId, { name }) {
+    return this.#enqueueOperation(async () => {
+      if (categoryId === 'default') throw new AppError({ status: 400, code: 'DEFAULT_CATEGORY_PROTECTED', message: '默认分类不能编辑或删除。' });
+      validateUuid(categoryId, 'categoryId');
+      const categories = await this.#readCategories();
+      if (!categories.some((item) => item.id === categoryId)) throw new NotFoundError('分类不存在', 'CATEGORY_NOT_FOUND');
+      if (categories.some((item) => item.id !== categoryId && item.name.toLocaleLowerCase() === name.toLocaleLowerCase())) {
+        throw new AppError({ status: 409, code: 'CATEGORY_EXISTS', message: '分类名称已存在' });
+      }
+      const items = categories.map((item) => item.id === categoryId ? { ...item, name } : item);
+      await this.#atomicWriteJson(join(this.resourcesDir, 'categories.json'), { items: items.filter((item) => item.id !== 'default'), order: items.map((item) => item.id) });
+      return items.find((item) => item.id === categoryId);
+    });
+  }
+
+  async deleteCategory(categoryId) {
+    return this.#enqueueOperation(async () => {
+      if (categoryId === 'default') throw new AppError({ status: 400, code: 'DEFAULT_CATEGORY_PROTECTED', message: '默认分类不能编辑或删除。' });
+      validateUuid(categoryId, 'categoryId');
+      const categories = await this.#readCategories();
+      if (!categories.some((item) => item.id === categoryId)) throw new NotFoundError('分类不存在', 'CATEGORY_NOT_FOUND');
+      const entries = await readdir(this.topicsDir, { withFileTypes: true });
+      const topics = await Promise.all(entries.filter((entry) => entry.isDirectory() && isUuid(entry.name)).map((entry) => this.#readTopicRecord(entry.name)));
+      // Move topics first: a failed/interrupted operation never leaves topics pointing to a removed category.
+      for (const topic of topics.filter((item) => item.categoryId === categoryId)) {
+        await this.#writeTopicRecord(updateTopicRecord(topic, { categoryId: 'default' }, nextTimestamp(topic.updatedAt)));
+      }
+      const items = categories.filter((item) => item.id !== categoryId);
+      await this.#atomicWriteJson(join(this.resourcesDir, 'categories.json'), { items: items.filter((item) => item.id !== 'default'), order: items.map((item) => item.id) });
+      return { items };
+    });
+  }
+
+  async reorderCategories(categoryIds) {
+    return this.#enqueueOperation(async () => {
+      const categories = await this.#readCategories();
+      const byId = new Map(categories.map((category) => [category.id, category]));
+      if (!Array.isArray(categoryIds) || categoryIds.length !== categories.length || new Set(categoryIds).size !== categories.length || categoryIds.some((id) => !byId.has(id))) {
+        throw new AppError({ status: 409, code: 'CATEGORY_ORDER_CONFLICT', message: '分类列表已变化或排序无效，请重新读取分类后再保存。' });
+      }
+      const items = categoryIds.map((id) => byId.get(id));
+      await this.#atomicWriteJson(join(this.resourcesDir, 'categories.json'), { items: items.filter((item) => item.id !== 'default'), order: categoryIds });
+      return { items };
     });
   }
 

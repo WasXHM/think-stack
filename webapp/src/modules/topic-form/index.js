@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { Button, ButtonLink } from '../../components/Button.js';
 import { useCategories } from '../../components/CategoryContext.js';
@@ -26,12 +26,14 @@ function validate(values) {
 
 export default function TopicFormModule({ mode }) {
   const editing = mode === 'edit';
-  const { categories, selectedCategoryId } = useCategories();
+  const [searchParams] = useSearchParams();
+  const { categories, selectedCategoryId, selectCategory } = useCategories();
+  const requestedCategoryId = searchParams.get('categoryId') ?? selectedCategoryId;
   const { topicId } = useParams();
   const navigate = useNavigate();
   const { notify } = useToast();
   const [topic, setTopic] = useState(null);
-  const [values, setValues] = useState({ title: '', question: '', categoryId: selectedCategoryId });
+  const [values, setValues] = useState({ title: '', question: '', categoryId: requestedCategoryId });
   const [errors, setErrors] = useState({});
   const [loadStatus, setLoadStatus] = useState(editing ? 'loading' : 'success');
   const [loadError, setLoadError] = useState('');
@@ -72,8 +74,8 @@ export default function TopicFormModule({ mode }) {
   }, [editing, topicId]);
 
   useEffect(() => {
-    if (!editing) setValues((current) => ({ ...current, categoryId: selectedCategoryId }));
-  }, [editing, selectedCategoryId]);
+    if (!editing) setValues((current) => ({ ...current, categoryId: requestedCategoryId }));
+  }, [editing, requestedCategoryId]);
 
   function updateValue(field, value) {
     setValues((current) => ({ ...current, [field]: value }));
@@ -105,6 +107,7 @@ export default function TopicFormModule({ mode }) {
         return;
       }
       const savedId = saved?.id ?? topicId;
+      selectCategory(saved?.categoryId ?? 'default');
       notify(editing ? '主题已更新。' : '新思考已创建。');
       navigate(`/topics/${savedId}`, { replace: true });
     } catch (error) {
@@ -152,7 +155,7 @@ export default function TopicFormModule({ mode }) {
         )}
         description={
           editing
-            ? '修正标题或最初的问题语境，不会改变已保存的外部解答和理解记录。'
+            ? '修改所属分类、标题或最初的问题语境，不会改变已保存的外部解答和理解记录。'
             : '先保存真实的问题语境，再逐步补充资料和阶段性理解。'
         }
         eyebrow={editing ? 'EDIT TOPIC' : 'NEW TOPIC'}
@@ -180,7 +183,7 @@ export default function TopicFormModule({ mode }) {
 
           <div className="field">
             <label htmlFor="topic-category">分类 <span className="field__help">（选填）</span></label>
-            <select id="topic-category" value={values.categoryId} onChange={(event) => updateValue('categoryId', event.target.value)}>
+            <select disabled={submitting} id="topic-category" value={values.categoryId} onChange={(event) => updateValue('categoryId', event.target.value)}>
               {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
             </select>
             <p className="field__help">未指定分类时归入默认分类。</p>

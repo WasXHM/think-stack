@@ -1,3 +1,4 @@
+import { filterCategoryOrder } from './filter.js';
 import {
   filterCreateExternalAnswer,
   filterCreateTopic,
@@ -91,4 +92,15 @@ export async function listCategories(ctx) {
 export async function createCategory(ctx) {
   ctx.body = { data: await ctx.topicService.createCategory(filterCreateCategory(ctx.request.body)) };
   ctx.status = 201;
+}
+
+export async function reorderCategories(ctx) {
+  ctx.body = { data: await ctx.topicService.reorderCategories(filterCategoryOrder(ctx.request.body)) };
+}
+
+export async function renameCategory(ctx) {
+  ctx.body = { data: await ctx.topicService.renameCategory(ctx.params.categoryId, filterCreateCategory(ctx.request.body)) };
+}
+export async function deleteCategory(ctx) {
+  ctx.body = { data: await ctx.topicService.deleteCategory(ctx.params.categoryId) };
 }

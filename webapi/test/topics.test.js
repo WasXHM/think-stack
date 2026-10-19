@@ -380,8 +380,24 @@ test('single-level categories persist and optional topic categories support lega
   assert.equal(topic.categoryId, 'default');
   const assigned = await request(api.baseUrl, '/topics', json('POST', { title: '分类主题', question: '背景', categoryId: category.id }));
   assert.equal(assigned.body.data.categoryId, category.id);
+  const answer = (await request(api.baseUrl, `/topics/${topic.id}/external-answers`, json('POST', { source: '资料', content: '保留解答' }))).body.data;
+  const understanding = (await request(api.baseUrl, `/topics/${topic.id}/understandings`, json('POST', { content: '保留理解' }))).body.data;
   const moved = await request(api.baseUrl, `/topics/${topic.id}`, json('PATCH', { categoryId: category.id }));
   assert.equal(moved.body.data.categoryId, category.id);
+  assert.equal(moved.response.status, 200);
+  assert.equal(moved.body.data.title, topic.title);
+  assert.equal(moved.body.data.question, topic.question);
+  assert.equal(moved.body.data.createdAt, topic.createdAt);
+  assert.deepEqual(moved.body.data.externalAnswers, [answer]);
+  assert.deepEqual(moved.body.data.understandings, [understanding]);
+  const persisted = JSON.parse(await readFile(join(api.resourcesDir, 'topics', topic.id, 'topic.json'), 'utf8'));
+  assert.equal(persisted.categoryId, category.id);
+  const afterMove = (await request(api.baseUrl, '/topics')).body.data.items;
+  assert.equal(afterMove.find((item) => item.id === topic.id).categoryId, category.id);
+  const invalidMove = await request(api.baseUrl, `/topics/${topic.id}`, json('PATCH', { categoryId: '11111111-1111-4111-8111-111111111111' }));
+  assert.equal(invalidMove.response.status, 404);
+  assert.equal((await request(api.baseUrl, `/topics/${topic.id}`)).body.data.categoryId, category.id);
+
   const reset = await request(api.baseUrl, `/topics/${topic.id}`, json('PATCH', { categoryId: null }));
   assert.equal(reset.body.data.categoryId, 'default');
   const invalid = await request(api.baseUrl, '/topics', json('POST', { title: '问题', question: '背景', categoryId: '11111111-1111-4111-8111-111111111111' }));
@@ -428,4 +444,77 @@ test('image upload returns persistent resources usable by Markdown and rejects i
   await api.stop('restart images');
   const restarted = await createTestApi(t, api.resourcesDir);
   assert.deepEqual(Buffer.from(await (await fetch(`${restarted.baseUrl}${path}`)).arrayBuffer()), png);
+});
+
+test('category order persists, includes default, preserves topics and appends new categories', async (t) => {
+  const api = await createTestApi(t);
+  t.after(() => rm(api.resourcesDir, { recursive: true, force: true }));
+  const create = async (name) => (await request(api.baseUrl, '/categories', json('POST', { name }))).body.data;
+  const a = await create('A');
+  const b = await create('B');
+  const topic = (await request(api.baseUrl, '/topics', json('POST', { title: 'Topic', question: 'Question', categoryId: a.id }))).body.data;
+  const ids = [b.id, 'default', a.id];
+  const sorted = await request(api.baseUrl, '/categories', json('PATCH', { categoryIds: ids }));
+  assert.equal(sorted.response.status, 200);
+  assert.deepEqual(sorted.body.data.items.map((item) => item.id), ids);
+  assert.deepEqual((await request(api.baseUrl, `/topics/${topic.id}`)).body.data, topic);
+  for (const categoryIds of [[a.id], [a.id, a.id, b.id], ['default', a.id, '11111111-1111-4111-8111-111111111111']]) {
+    assert.equal((await request(api.baseUrl, '/categories', json('PATCH', { categoryIds }))).response.status, 409);
+  }
+  assert.equal((await request(api.baseUrl, '/categories', json('PATCH', { categoryIds: 'invalid' }))).response.status, 400);
+  const c = await create('C');
+  assert.equal((await request(api.baseUrl, '/categories', json('PATCH', { categoryIds: ids }))).response.status, 409);
+  const expected = [...ids, c.id];
+  await api.stop('restart order');
+  const restarted = await createTestApi(t, api.resourcesDir);
+  const read = await request(restarted.baseUrl, '/categories');
+  assert.deepEqual(read.body.data.items.map((item) => item.id), expected);
+  assert.equal(read.body.data.items.filter((item) => item.id === 'default').length, 1);
+  const disk = JSON.parse(await readFile(join(api.resourcesDir, 'categories.json'), 'utf8'));
+  assert.deepEqual(disk.order, expected);
+});
+
+test('category rename and deletion preserve order and move complete topics to default', async (t) => {
+  const api = await createTestApi(t);
+  t.after(() => rm(api.resourcesDir, { recursive: true, force: true }));
+  const category = (await request(api.baseUrl, '/categories', json('POST', { name: 'Old' }))).body.data;
+  const other = (await request(api.baseUrl, '/categories', json('POST', { name: 'Other' }))).body.data;
+  const path = `/categories/${category.id}`;
+  const order = [other.id, category.id, 'default'];
+  await request(api.baseUrl, '/categories', json('PATCH', { categoryIds: order }));
+  const renamed = await request(api.baseUrl, path, json('PATCH', { name: ' New ' }));
+  assert.equal(renamed.response.status, 200);
+  assert.equal(renamed.body.data.name, 'New');
+  assert.equal(renamed.body.data.id, category.id);
+  assert.deepEqual((await request(api.baseUrl, '/categories')).body.data.items.map((item) => item.id), order);
+  for (const name of ['Other', '默认分类']) assert.equal((await request(api.baseUrl, path, json('PATCH', { name }))).response.status, 409);
+  assert.equal((await request(api.baseUrl, path, json('PATCH', { name: ' ' }))).response.status, 400);
+  for (const method of ['PATCH', 'DELETE']) {
+    const denied = await fetch(`${api.baseUrl}${path}`, { method, headers: { 'content-type': 'application/json', 'x-thinkstack-request': '1' }, body: JSON.stringify({ name: 'No' }) });
+    assert.equal(denied.status, 401);
+  }
+  assert.equal((await request(api.baseUrl, '/categories/default', json('PATCH', { name: 'No' }))).response.status, 400);
+  assert.equal((await request(api.baseUrl, '/categories/default', { method: 'DELETE' })).response.status, 400);
+  const topic = (await request(api.baseUrl, '/topics', json('POST', { title: 'Title', question: 'Question', categoryId: category.id }))).body.data;
+  const untouched = (await request(api.baseUrl, '/topics', json('POST', { title: 'Other topic', question: 'Question', categoryId: other.id }))).body.data;
+  const answer = (await request(api.baseUrl, `/topics/${topic.id}/external-answers`, json('POST', { source: 'Source', content: 'Answer' }))).body.data;
+  const understanding = (await request(api.baseUrl, `/topics/${topic.id}/understandings`, json('POST', { content: 'Understanding' }))).body.data;
+  const removed = await request(api.baseUrl, path, { method: 'DELETE' });
+  assert.equal(removed.response.status, 200);
+  assert.deepEqual(removed.body.data.items.map((item) => item.id), [other.id, 'default']);
+  const moved = (await request(api.baseUrl, `/topics/${topic.id}`)).body.data;
+  assert.equal(moved.categoryId, 'default');
+  assert.equal(moved.title, topic.title);
+  assert.equal(moved.question, topic.question);
+  assert.equal(moved.createdAt, topic.createdAt);
+  assert.deepEqual(moved.externalAnswers, [answer]);
+  assert.deepEqual(moved.understandings, [understanding]);
+  assert.deepEqual((await request(api.baseUrl, `/topics/${untouched.id}`)).body.data, untouched);
+  assert.equal((await request(api.baseUrl, path, { method: 'DELETE' })).response.status, 404);
+  await api.stop('restart category deletion');
+  const restarted = await createTestApi(t, api.resourcesDir);
+  assert.deepEqual((await request(restarted.baseUrl, '/categories')).body.data.items.map((item) => item.id), [other.id, 'default']);
+  assert.equal((await request(restarted.baseUrl, `/topics/${topic.id}`)).body.data.categoryId, 'default');
+  const emptyDeleted = await request(restarted.baseUrl, '/categories', json('POST', { name: 'Empty' }));
+  assert.equal((await request(restarted.baseUrl, `/categories/${emptyDeleted.body.data.id}`, { method: 'DELETE' })).response.status, 200);
 });

@@ -356,11 +356,13 @@ button:disabled {
   font-size: 14px;
   font-weight: 550;
   transition: background var(--calm-motion-fast), border-color var(--calm-motion-fast), color var(--calm-motion-fast);
+  background: var(--calm-inset);
+  color: var(--calm-ink);
 }
 
 .navigation-link:hover {
-  background: var(--calm-inset);
-  color: var(--calm-ink);
+  border-color: var(--calm-accent-500);
+  background: var(--calm-accent-50);
 }
 
 .navigation-link.is-active {
@@ -2447,7 +2449,7 @@ button:disabled {
   }
 }
 
-.navigation-create-actions { display: flex; align-items: center; gap: 8px; }
+.navigation-create-actions { display: flex; align-items: center; justify-content: center; gap: 12px; }
 .navigation-create-actions .navigation-link { padding: 10px 8px; font-size: 13px; white-space: nowrap; }
 .navigation-category { display: flex; align-items: stretch; border-radius: 3px; }
 .navigation-category.is-selected { background: var(--calm-accent-50); }
@@ -2501,3 +2503,14 @@ button:disabled {
 .markdown-editor__upload-status { margin: 0; flex-shrink: 0; }
 
 .auth-control { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+.category-order-list { margin: 0; padding: 0; list-style: none; }
+.category-order-list li { display: flex; align-items: center; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--calm-border); }
+.category-order-list__name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+
+.category-menu-trigger { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 28px; padding: 0; border: 0; background: transparent; color: var(--calm-muted); cursor: pointer; }
+.category-menu-trigger:hover, .category-menu-trigger[aria-expanded="true"] { background: var(--calm-inset); color: var(--calm-ink); }
+.category-menu { position: fixed; z-index: 1000; width: 164px; padding: 4px; background: var(--calm-surface); color: var(--calm-ink); border: 1px solid var(--calm-border); border-radius: 3px; box-shadow: var(--calm-shadow-diffuse); }
+.category-menu button { display: block; width: 100%; border: 0; padding: 10px 12px; text-align: left; background: transparent; color: inherit; cursor: pointer; font: inherit; font-size: 13px; }
+.category-menu button:hover, .category-menu button:focus-visible { background: var(--calm-inset); }
+.category-menu button.category-menu__danger { color: var(--calm-danger-fg); }

@@ -3,7 +3,7 @@ import { useCategories } from '../../components/CategoryContext.js';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 
-import { Button, ButtonLink } from '../../components/Button.js';
+import { Button } from '../../components/Button.js';
 import ConfirmDialog from '../../components/ConfirmDialog.js';
 import DateTime from '../../components/DateTime.js';
 import Icon from '../../components/Icon.js';
@@ -98,7 +98,7 @@ export default function HomeModule() {
   usePageTitle('思考主题');
   const { notify } = useToast();
   const { refreshTopicIndex } = useOutletContext();
-  const { openCreateCategory } = useCategories();
+  const { openCreateCategory, categoryRevision } = useCategories();
   const [searchParams, setSearchParams] = useSearchParams();
   const query = searchParams.get('q') ?? '';
   const [searchValue, setSearchValue] = useState(query);
@@ -143,7 +143,7 @@ export default function HomeModule() {
     const controller = new AbortController();
     load(controller.signal);
     return () => controller.abort();
-  }, [load]);
+  }, [load, categoryRevision]);
 
   function submitSearch(event) {
     event.preventDefault();
@@ -171,10 +171,6 @@ export default function HomeModule() {
       <PageHeader
         actions={canEdit && (
           <div className="navigation-create-actions">
-          <ButtonLink to="/topics/new" variant="primary">
-            <Icon name="plus" size={18} />
-            新建思考
-          </ButtonLink>
           <Button onClick={openCreateCategory} variant="secondary">新建分类</Button>
           </div>
         )}
@@ -246,8 +242,6 @@ export default function HomeModule() {
             />
           ) : (
             <StatePanel
-              actionLabel="新建思考"
-              actionTo={canEdit ? "/topics/new" : undefined}
               description="先记录一个真实问题，再逐步补充外部解答和自己的理解。"
               icon="book"
               title="还没有思考主题"

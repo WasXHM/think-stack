@@ -180,3 +180,11 @@ export function filterCreateCategory(body) {
   validateBody(body, ['name']);
   return { name: requiredString(body.name, 'name', 80) };
 }
+
+export function filterCategoryOrder(body) {
+  validateBody(body, ['categoryIds']);
+  if (!Array.isArray(body.categoryIds) || body.categoryIds.some((id) => typeof id !== 'string' || (id !== 'default' && !/^[0-9a-f-]{36}$/i.test(id)))) {
+    throw new ValidationError('请提供有效的分类排序列表。');
+  }
+  return [...body.categoryIds];
+}

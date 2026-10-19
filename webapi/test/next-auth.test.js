@@ -9,7 +9,7 @@ test('Next.js routes share authentication and protect every mutation', async (t)
   process.env.RESOURCES_DIR = dir;
   t.after(() => rm(dir, { recursive: true, force: true }));
   const routes = [
-    'topics', 'categories', 'images', 'topics/[topicId]',
+    'topics', 'categories', 'categories/[categoryId]', 'images', 'topics/[topicId]',
     'topics/[topicId]/external-answers', 'topics/[topicId]/external-answers/[answerId]',
     'topics/[topicId]/understandings', 'topics/[topicId]/understandings/[understandingId]',
   ];
@@ -28,6 +28,14 @@ test('Next.js routes share authentication and protect every mutation', async (t)
   const cookie = login.headers.get('set-cookie').split(';')[0];
   const session = await auth.GET(request('auth/session', 'GET', null, cookie), { params: { action: 'session' } });
   assert.equal((await session.json()).data.user.username, 'admin');
+  const categories = await import('../../app/api/categories/route.js');
+  const category = await categories.POST(request('categories', 'POST', { name: '排序分类' }, cookie));
+  const categoryId = (await category.json()).data.id;
+  const ordered = await categories.PATCH(request('categories', 'PATCH', { categoryIds: [categoryId, 'default'] }, cookie));
+  assert.equal(ordered.status, 200);
+  assert.deepEqual((await ordered.json()).data.items.map((item) => item.id), [categoryId, 'default']);
+  const categoryRoute = await import('../../app/api/categories/[categoryId]/route.js');
+  assert.equal((await categoryRoute.PATCH(request(`categories/${categoryId}`, 'PATCH', { name: '重命名分类' }, cookie), { params: { categoryId } })).status, 200);
   const topics = await import('../../app/api/topics/route.js');
   assert.equal((await topics.GET(request('topics'))).status, 200);
   assert.equal((await topics.POST(request('topics', 'POST', {}, cookie, false))).status, 403);
@@ -37,6 +45,10 @@ test('Next.js routes share authentication and protect every mutation', async (t)
   const detail = await import('../../app/api/topics/[topicId]/route.js');
   assert.equal((await detail.GET(request(`topics/${id}`), { params: { topicId: id } })).status, 200);
   assert.equal((await detail.PATCH(request(`topics/${id}`, 'PATCH', { title: 'Updated', question: 'Question' }, cookie), { params: { topicId: id } })).status, 200);
+  await detail.PATCH(request(`topics/${id}`, 'PATCH', { categoryId }, cookie), { params: { topicId: id } });
+  assert.equal((await categoryRoute.DELETE(request(`categories/${categoryId}`, 'DELETE', null, cookie), { params: { categoryId } })).status, 200);
+  const moved = await detail.GET(request(`topics/${id}`), { params: { topicId: id } });
+  assert.equal((await moved.json()).data.categoryId, 'default');
   await auth.POST(request('auth/logout', 'POST', null, cookie), { params: { action: 'logout' } });
   assert.equal((await detail.DELETE(request(`topics/${id}`, 'DELETE', null, cookie), { params: { topicId: id } })).status, 401);
 });

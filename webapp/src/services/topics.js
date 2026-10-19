@@ -106,3 +106,14 @@ export async function listCategories({ signal } = {}) {
 export async function createCategory(input) {
   return unwrapData(await apiRequest('/categories', { method: 'POST', body: input }));
 }
+
+export async function reorderCategories(categoryIds) {
+  return unwrapData(await apiRequest('/categories', { method: 'PATCH', body: { categoryIds } }));
+}
+
+export async function renameCategory(id, input) {
+  return unwrapData(await apiRequest(`/categories/${encodeURIComponent(id)}`, { method: 'PATCH', body: input }));
+}
+export async function deleteCategory(id) {
+  return unwrapData(await apiRequest(`/categories/${encodeURIComponent(id)}`, { method: 'DELETE' }));
+}

@@ -1,5 +1,8 @@
 export function createTopicService(topicStore) {
   return {
+    reorderCategories(ids) { return topicStore.reorderCategories(ids); },
+    renameCategory(id, input) { return topicStore.renameCategory(id, input); },
+    deleteCategory(id) { return topicStore.deleteCategory(id); },
     listCategories() { return topicStore.listCategories(); },
     createCategory(input) { return topicStore.createCategory(input); },
     list(input) {

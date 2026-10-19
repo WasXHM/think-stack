@@ -1,3 +1,5 @@
+import { useCategories } from '../../components/CategoryContext.js';
+import TopicCategory from '../../components/TopicCategory.js';
 import { useAuth } from '../../components/AuthContext.js';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
@@ -99,6 +101,7 @@ function SectionHeading({ eyebrow, title, count, actionLabel, onAction, id }) {
 }
 
 export default function TopicDetailModule() {
+  const { categoryRevision } = useCategories();
   const { canEdit } = useAuth();
   const { topicId } = useParams();
   const navigate = useNavigate();
@@ -132,7 +135,7 @@ export default function TopicDetailModule() {
     const controller = new AbortController();
     load(controller.signal);
     return () => controller.abort();
-  }, [load]);
+  }, [load, categoryRevision]);
 
   const externalAnswers = useMemo(
     () => [...(topic?.externalAnswers ?? [])].sort(
@@ -356,6 +359,7 @@ export default function TopicDetailModule() {
           <div className="topic-overview">
             <p className="eyebrow">OVERVIEW</p>
             <h2>本题概览</h2>
+            <TopicCategory key={topic.id} topic={topic} onSaved={setTopic} />
             <dl className="topic-overview__counts">
               <div><dt>外部解答</dt><dd>{externalAnswers.length}</dd></div>
               <div><dt>我的理解</dt><dd>{understandings.length}</dd></div>
