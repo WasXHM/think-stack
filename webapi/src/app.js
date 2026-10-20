@@ -1,3 +1,4 @@
+import { withLocale, normalizeLocale } from './core/locale.js';
 import 'dotenv/config';
 
 import { createServer } from 'node:http';
@@ -93,6 +94,10 @@ export function createApplication({
   app.context.topicStore = store;
   app.context.topicService = createTopicService(store);
   app.use(errorHandler);
+  app.use((ctx, next) => {
+    ctx.set('Cache-Control', 'no-store');
+    return withLocale(normalizeLocale(ctx.query.lang ?? ctx.get('x-thinkstack-language')), next);
+  });
   app.use(async (ctx, next) => {
     ctx.state.user = await ctx.authService.getUser(ctx.cookies.get(COOKIE) ?? '');
     if (ctx.path.startsWith('/auth')) ctx.set('Cache-Control', 'no-store');

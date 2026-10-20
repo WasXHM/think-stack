@@ -1,3 +1,5 @@
+import { LanguageSwitch } from '../i18n/LanguageProvider.js';
+import { t } from '../i18n/index.js';
 import CategoryMenu from './CategoryMenu.js';
 import { AuthProvider, AuthControl, useAuth } from './AuthContext.js';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -14,7 +16,7 @@ import { ThemeToggle } from './ThemeProvider.js';
 
 function Brand() {
   return (
-    <NavLink aria-label="ThinkStack 首页" className="brand" to="/">
+    <NavLink aria-label={t("ThinkStack 首页")} className="brand" to="/">
       <span className="brand__mark" aria-hidden="true">
         <span />
         <span />
@@ -22,7 +24,7 @@ function Brand() {
       </span>
       <span>
         <strong>ThinkStack</strong>
-        <small>思栈</small>
+        <small>{t("思栈")}</small>
       </span>
     </NavLink>
   );
@@ -46,12 +48,12 @@ function TopicNavigation({ error, items, onNavigate, onRetry, status }) {
   return (
     <div className="navigation-topics">
       <div className="navigation-topics__heading">
-        <span>已添加主题</span>
+        <span>{t("已添加主题")}</span>
         <span>{status === 'success' ? items.length : '—'}</span>
       </div>
 
       {status === 'loading' ? (
-        <div aria-label="正在读取已添加的主题" className="navigation-topics__skeleton" role="status">
+        <div aria-label={t("正在读取已添加的主题")} className="navigation-topics__skeleton" role="status">
           {[0, 1, 2, 3].map((item) => (
             <span className="skeleton navigation-topics__skeleton-row" key={item} />
           ))}
@@ -61,19 +63,19 @@ function TopicNavigation({ error, items, onNavigate, onRetry, status }) {
       {status === 'error' ? (
         <div className="navigation-topics__state" role="alert">
           <p>{error}</p>
-          <Button onClick={onRetry} size="small" type="button">重新读取</Button>
+          <Button onClick={onRetry} size="small" type="button">{t("重新读取")}</Button>
         </div>
       ) : null}
 
-      {loadError ? <div role="alert" className="navigation-topics__state">{loadError}<Button onClick={refresh}>重试</Button></div> : null}
+      {loadError ? <div role="alert" className="navigation-topics__state">{loadError}<Button onClick={refresh}>{t("重试")}</Button></div> : null}
       {status === 'success' ? (
-        <ul aria-label="主题分类" className="navigation-topic-list">
+        <ul aria-label={t("主题分类")} className="navigation-topic-list">
           {categories.map((category) => {
             const topics = items.filter((topic) => (topic.categoryId ?? 'default') === category.id);
             const isExpanded = expanded.includes(category.id);
             return <li key={category.id}>
               <div className={`navigation-category ${selectedCategoryId === category.id ? 'is-selected' : ''}`}>
-                <button type="button" className="category-toggle" aria-label={`${isExpanded ? '收起' : '展开'}${category.name}`} aria-expanded={isExpanded} onClick={() => toggleCategory(category.id)}>{isExpanded ? '▾' : '▸'}</button>
+                <button type="button" className="category-toggle" aria-label={`${isExpanded ? t("收起") : t("展开")}${category.name}`} aria-expanded={isExpanded} onClick={() => toggleCategory(category.id)}>{isExpanded ? '▾' : '▸'}</button>
                 <button type="button" className="category-select" aria-pressed={selectedCategoryId === category.id} onClick={() => selectCategory(category.id)}><span>{category.name}</span><small>{topics.length}</small></button>
                 <CategoryMenu category={category} onNavigate={onNavigate} />
               </div>
@@ -83,7 +85,7 @@ function TopicNavigation({ error, items, onNavigate, onRetry, status }) {
                     <span aria-hidden="true" className="navigation-topic-link__index">{String(index + 1).padStart(2, '0')}</span><span className="navigation-topic-link__title">{topic.title}</span>
                   </NavLink>
                 </li>)}
-                {!topics.length ? <li className="navigation-topics__empty">暂无主题</li> : null}
+                {!topics.length ? <li className="navigation-topics__empty">{t("暂无主题")}</li> : null}
               </ul> : null}
             </li>;
           })}
@@ -97,8 +99,8 @@ function Navigation({ onNavigate, onRetryTopics, topicIndex }) {
   const { openCreateCategory, openCategoryOrder } = useCategories();
   const { canEdit } = useAuth();
   return (
-    <nav aria-label="主导航" className="primary-navigation">
-      <p className="navigation-label">工作区</p>
+    <nav aria-label={t("主导航")} className="primary-navigation">
+      <p className="navigation-label">{t("工作区")}</p>
       <NavLink
         className={({ isActive }) => `navigation-link ${isActive ? 'is-active' : ''}`}
         end
@@ -106,7 +108,7 @@ function Navigation({ onNavigate, onRetryTopics, topicIndex }) {
         to="/"
       >
         <Icon name="home" size={19} />
-        <span>全部思考</span>
+        <span>{t("全部思考")}</span>
       </NavLink>
       <TopicNavigation
         error={topicIndex.error}
@@ -116,8 +118,8 @@ function Navigation({ onNavigate, onRetryTopics, topicIndex }) {
         status={topicIndex.status}
       />
       {canEdit && <div className="navigation-create-actions">
-      <button type="button" className="navigation-link" onClick={() => { onNavigate?.(); openCreateCategory(); }}>新建分类</button>
-      <button type="button" className="navigation-link" onClick={() => { onNavigate?.(); openCategoryOrder(); }}>分类排序</button>
+      <button type="button" className="navigation-link" onClick={() => { onNavigate?.(); openCreateCategory(); }}>{t("新建分类")}</button>
+      <button type="button" className="navigation-link" onClick={() => { onNavigate?.(); openCategoryOrder(); }}>{t("分类排序")}</button>
       </div>}
     </nav>
   );
@@ -126,11 +128,11 @@ function Navigation({ onNavigate, onRetryTopics, topicIndex }) {
 function Sidebar({ collapsed, onToggle, onRetryTopics, topicIndex }) {
   return (
     <aside className={`sidebar${collapsed ? ' sidebar--collapsed' : ''}`}>
-      <div className="sidebar__brand-row"><Brand /><IconButton icon={collapsed ? 'chevronRight' : 'chevronLeft'} label={collapsed ? '展开导航栏' : '收起导航栏'} onClick={onToggle} /></div>
+      <div className="sidebar__brand-row"><Brand /><IconButton icon={collapsed ? 'chevronRight' : 'chevronLeft'} label={collapsed ? t("展开导航栏") : t("收起导航栏")} onClick={onToggle} /></div>
       <Navigation onRetryTopics={onRetryTopics} topicIndex={topicIndex} />
       <div className="sidebar__note">
-        <p>问题留下来，理解继续生长。</p>
-        <span>个人技术思考工作台</span>
+        <p>{t("问题留下来，理解继续生长。")}</p>
+        <span>{t("个人技术思考工作台")}</span>
       </div>
     </aside>
   );
@@ -147,14 +149,14 @@ function MobileNavigation({ open, onClose, onRetryTopics, topicIndex }) {
   return createPortal(
     <div className="mobile-navigation-layer">
       <button
-        aria-label="关闭导航"
+        aria-label={t("关闭导航")}
         className="overlay-backdrop"
         onClick={onClose}
         tabIndex="-1"
         type="button"
       />
       <aside
-        aria-label="移动导航"
+        aria-label={t("移动导航")}
         aria-modal="true"
         className="mobile-navigation"
         ref={panelRef}
@@ -163,7 +165,7 @@ function MobileNavigation({ open, onClose, onRetryTopics, topicIndex }) {
       >
         <div className="mobile-navigation__header">
           <Brand />
-          <IconButton data-autofocus icon="close" label="关闭导航" onClick={onClose} />
+          <IconButton data-autofocus icon="close" label={t("关闭导航")} onClick={onClose} />
         </div>
         <Navigation
           onNavigate={onClose}
@@ -171,7 +173,7 @@ function MobileNavigation({ open, onClose, onRetryTopics, topicIndex }) {
           topicIndex={topicIndex}
         />
         <div className="mobile-navigation__footer">
-          <span>界面主题</span>
+          <span>{t("界面主题")}</span>
           <ThemeToggle />
         </div>
       </aside>
@@ -213,7 +215,7 @@ function useTopicIndex(pathname, categoryRevision) {
         setTopicIndex({
           items: [],
           status: 'error',
-          error: getErrorMessage(loadError, '主题列表暂时不可用。'),
+          error: getErrorMessage(loadError, t("主题列表暂时不可用。")),
         });
       }
     } finally {
@@ -232,11 +234,11 @@ function useTopicIndex(pathname, categoryRevision) {
 }
 
 function getLocationLabel(pathname) {
-  if (pathname === '/') return '全部思考';
-  if (pathname === '/topics/new') return '新建思考';
-  if (pathname.endsWith('/edit')) return '编辑主题';
-  if (pathname.startsWith('/topics/')) return '主题详情';
-  return '页面未找到';
+  if (pathname === '/') return t("全部思考");
+  if (pathname === '/topics/new') return t("新建思考");
+  if (pathname.endsWith('/edit')) return t("编辑主题");
+  if (pathname.startsWith('/topics/')) return t("主题详情");
+  return t("页面未找到");
 }
 
 function GlobalSearch() {
@@ -259,13 +261,13 @@ function GlobalSearch() {
 
   return (
     <form className="global-search" onSubmit={submit} role="search">
-      <label className="sr-only" htmlFor="global-search-input">搜索思考主题</label>
+      <label className="sr-only" htmlFor="global-search-input">{t("搜索思考主题")}</label>
       <Icon name="search" size={17} />
       <input
         id="global-search-input"
         maxLength={200}
         onChange={(event) => setValue(event.target.value)}
-        placeholder="搜索标题或原始问题"
+        placeholder={t("搜索标题或原始问题")}
         type="search"
         value={value}
       />
@@ -303,9 +305,7 @@ function AppLayoutContent() {
         className="skip-link"
         href={`${typeof window === 'undefined' ? '/think-stack/' : window.location.pathname + window.location.search}#main-content`}
         onClick={skipToMainContent}
-      >
-        跳到主要内容
-      </a>
+      > {t("跳到主要内容")} </a>
       <Sidebar collapsed={navigationCollapsed} onToggle={() => setNavigationCollapsed((value) => !value)} onRetryTopics={retryTopics} topicIndex={topicIndex} />
       <MobileNavigation
         onClose={closeNavigation}
@@ -319,7 +319,7 @@ function AppLayoutContent() {
             <IconButton
               className="topbar__menu"
               icon="menu"
-              label="打开导航"
+              label={t("打开导航")}
               onClick={() => setNavigationOpen(true)}
             />
             <span className="topbar__context">ThinkStack</span>
@@ -329,13 +329,14 @@ function AppLayoutContent() {
           <div className="topbar__actions">
             <GlobalSearch />
             <NavLink
-              aria-label="在首页搜索"
+              aria-label={t("在首页搜索")}
               className="icon-button topbar__mobile-search"
               to="/?search=1"
             >
               <Icon name="search" size={18} />
             </NavLink>
             <ThemeToggle />
+            <LanguageSwitch />
             <AuthControl />
           </div>
         </header>

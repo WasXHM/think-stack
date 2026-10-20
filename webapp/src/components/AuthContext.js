@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { getSession, login, logout } from '../services/auth.js';
 import Drawer from './Drawer.js';
@@ -37,23 +38,23 @@ export function AuthProvider({ children }) {
   }
   return <Context.Provider value={{ user, canEdit: Boolean(user), loading, openLogin, signOut, busy, error }}>
     {children}
-    <Drawer open={open} onClose={() => { setOpen(false); setPassword(''); }} title="登录" description="登录后可以新增、编辑和删除内容。" busy={busy} presentation="workspace-dialog">
+    <Drawer open={open} onClose={() => { setOpen(false); setPassword(''); }} title={t("登录")} description={t("登录后可以新增、编辑和删除内容。")} busy={busy} presentation="workspace-dialog">
       <form onSubmit={submit}>
-        <div className="field"><label htmlFor="login-username">用户名</label><input id="login-username" autoComplete="username" required maxLength={100} value={username} onChange={(event) => setUsername(event.target.value)} disabled={busy} data-autofocus /></div>
-        <div className="field"><label htmlFor="login-password">密码</label><input id="login-password" type="password" autoComplete="current-password" required maxLength={256} value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy} /></div>
+        <div className="field"><label htmlFor="login-username">{t("用户名")}</label><input id="login-username" autoComplete="username" required maxLength={100} value={username} onChange={(event) => setUsername(event.target.value)} disabled={busy} data-autofocus /></div>
+        <div className="field"><label htmlFor="login-password">{t("密码")}</label><input id="login-password" type="password" autoComplete="current-password" required maxLength={256} value={password} onChange={(event) => setPassword(event.target.value)} disabled={busy} /></div>
         {error ? <p className="form-error" role="alert">{error}</p> : null}
-        <div className="form-actions"><Button busy={busy} type="submit" variant="primary">登录</Button><Button disabled={busy} type="button" onClick={() => { setOpen(false); setPassword(''); }}>取消</Button></div>
+        <div className="form-actions"><Button busy={busy} type="submit" variant="primary">{t("登录")}</Button><Button disabled={busy} type="button" onClick={() => { setOpen(false); setPassword(''); }}>{t("取消")}</Button></div>
       </form>
     </Drawer>
   </Context.Provider>;
 }
 export function AuthControl() {
   const { user, openLogin, signOut, busy, error } = useAuth();
-  return <div className="auth-control">{user ? <><span>{user.username}</span><Button disabled={busy} onClick={signOut}>退出登录</Button>{error ? <span role="alert">{error}</span> : null}</> : <Button onClick={openLogin}>登录</Button>}</div>;
+  return <div className="auth-control">{user ? <><span>{user.username}</span><Button disabled={busy} onClick={signOut}>{t("退出登录")}</Button>{error ? <span role="alert">{error}</span> : null}</> : <Button onClick={openLogin}>{t("登录")}</Button>}</div>;
 }
 export function RequireEditor({ children }) {
   const { canEdit, loading, openLogin } = useAuth();
-  if (loading) return <div className="page" role="status">正在确认登录状态…</div>;
-  if (!canEdit) return <div className="page"><h1>当前为只读模式</h1><p>你可以浏览所有文档，登录后即可新增和编辑内容。</p><Button onClick={openLogin} variant="primary">登录</Button></div>;
+  if (loading) return <div className="page" role="status">{t("正在确认登录状态…")}</div>;
+  if (!canEdit) return <div className="page"><h1>{t("当前为只读模式")}</h1><p>{t("你可以浏览所有文档，登录后即可新增和编辑内容。")}</p><Button onClick={openLogin} variant="primary">{t("登录")}</Button></div>;
   return children;
 }

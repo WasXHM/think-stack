@@ -1,3 +1,5 @@
+import { EditingLanguageNotice } from '../i18n/LanguageProvider.js';
+import { t } from '../i18n/index.js';
 import React, { useEffect, useRef, useState } from 'react';
 
 import {
@@ -32,7 +34,7 @@ export default function EntryDrawer({ open, kind, entry, topicId, onClose, onSav
       draftReadyRef.current = false;
       return;
     }
-    const savedSource = entry?.source === '未注明来源' ? '' : entry?.source ?? '';
+    const savedSource = ['未注明来源', 'Source not specified'].includes(entry?.source) ? '' : entry?.source ?? '';
     const knownSource = SOURCE_OPTIONS.includes(savedSource);
     const draft = !editing ? readEntryDraft(topicId, kind) : null;
     setSourceChoice(draft?.sourceChoice ?? (knownSource ? savedSource : savedSource ? 'Other' : ''));
@@ -62,8 +64,8 @@ export default function EntryDrawer({ open, kind, entry, topicId, onClose, onSav
     const selectedSource = sourceChoice === 'Other' ? customSource.trim() : sourceChoice;
     if (!content.trim()) {
       nextErrors.content = answer
-        ? '请粘贴或记录外部解答正文。'
-        : '请记录你此刻对这个问题的理解。';
+        ? t("请粘贴或记录外部解答正文。")
+        : t("请记录你此刻对这个问题的理解。");
     }
     setErrors(nextErrors);
     setSubmitError('');
@@ -75,7 +77,7 @@ export default function EntryDrawer({ open, kind, entry, topicId, onClose, onSav
     try {
       let saved;
       if (answer) {
-        const input = { source: selectedSource || '未注明来源', content: content.trim() };
+        const input = { source: selectedSource || t("未注明来源"), content: content.trim() };
         saved = editing
           ? await updateExternalAnswer(topicId, entry.id, input)
           : await createExternalAnswer(topicId, input);
@@ -88,36 +90,40 @@ export default function EntryDrawer({ open, kind, entry, topicId, onClose, onSav
       if (!editing) clearEntryDraft(topicId, kind);
       await onSaved(saved, { kind, editing });
     } catch (error) {
-      setSubmitError(getErrorMessage(error, '内容没有保存，请重新尝试。'));
+      setSubmitError(getErrorMessage(error, t("内容没有保存，请重新尝试。")));
       setSubmitting(false);
     }
   }
 
-  const noun = answer ? '外部解答' : '我的理解';
+  const noun = answer ? t("外部解答") : t("我的理解");
   return (
     <Drawer
       busy={submitting || uploading}
       description={
         answer
-          ? '正文支持 Markdown；来源信息可稍后补充。'
+          ? t("正文支持 Markdown；来源信息可稍后补充。")
           : editing
-            ? '只修正原记录中的文字错误；新的认识应追加为一条新记录。'
-            : '新增记录会追加到时间线，不会覆盖过去的理解。'
+            ? t("只修正原记录中的文字错误；新的认识应追加为一条新记录。")
+            : t("新增记录会追加到时间线，不会覆盖过去的理解。")
       }
       eyebrow={answer ? 'EXTERNAL ANSWER' : 'UNDERSTANDING'}
       footer={(
         <>
-          <Button disabled={submitting || uploading} onClick={handleClose} size="large">取消</Button>
+          <Button disabled={submitting || uploading} onClick={handleClose} size="large">{t("取消")}</Button>
           <Button
             disabled={uploading}
             busy={submitting}
-            busyLabel="正在保存…"
+            busyLabel={t("正在保存…")}
             form="entry-editor-form"
             size="large"
             type="submit"
             variant="primary"
           >
-            {editing ? `保存${noun}` : `添加${noun}`}
+            {editing ? t("保存{p0}", {
+  p0: noun
+}) : t("添加{p0}", {
+  p0: noun
+})}
           </Button>
         </>
       )}
@@ -125,15 +131,20 @@ export default function EntryDrawer({ open, kind, entry, topicId, onClose, onSav
       open={open}
       lockScroll={answer}
       presentation={answer ? 'workspace-dialog' : 'drawer'}
-      title={editing ? `编辑${noun}` : `添加${noun}`}
+      title={editing ? t("编辑{p0}", {
+  p0: noun
+}) : t("添加{p0}", {
+  p0: noun
+})}
     >
       <form id="entry-editor-form" noValidate onSubmit={submit}>
+        <EditingLanguageNotice />
         {!answer && editing ? (
           <div className="editor-notice">
             <Icon name="alert" size={20} />
             <div>
-              <strong>保留认知演进</strong>
-              <p>如果你的认识发生变化，请关闭此弹窗并选择“添加我的理解”。</p>
+              <strong>{t("保留认知演进")}</strong>
+              <p>{t("如果你的认识发生变化，请关闭此弹窗并选择“添加我的理解”。")}</p>
             </div>
           </div>
         ) : null}
@@ -143,14 +154,14 @@ export default function EntryDrawer({ open, kind, entry, topicId, onClose, onSav
           onUploadStateChange={setUploading}
           error={errors.content}
           fillAvailable
-          helper={answer ? '可直接粘贴长文本、代码块、表格和链接。' : '写下当前判断、依据与仍然不确定的部分。'}
+          helper={answer ? t("可直接粘贴长文本、代码块、表格和链接。") : t("写下当前判断、依据与仍然不确定的部分。")}
           id="entry-content"
-          label={answer ? '解答正文' : '理解正文'}
+          label={answer ? t("解答正文") : t("理解正文")}
           onChange={(value) => {
             setContent(value);
             setErrors((current) => ({ ...current, content: '' }));
           }}
-          placeholder={answer ? '粘贴或整理这条外部解答…' : '记录你目前对这个问题的理解…'}
+          placeholder={answer ? t("粘贴或整理这条外部解答…") : t("记录你目前对这个问题的理解…")}
           previewOnDemand
           required
           value={content}
@@ -158,25 +169,25 @@ export default function EntryDrawer({ open, kind, entry, topicId, onClose, onSav
         {answer ? (
           <div className="source-fields source-fields--secondary">
             <div className="field">
-              <label htmlFor="entry-source">来源 <span className="field__optional">可选</span></label>
+              <label htmlFor="entry-source">{t("来源")} <span className="field__optional">{t("可选")}</span></label>
               <select
                 id="entry-source"
                 onChange={(event) => setSourceChoice(event.target.value)}
                 value={sourceChoice}
               >
-                <option value="">不填写来源</option>
+                <option value="">{t("不填写来源")}</option>
                 {SOURCE_OPTIONS.map((source) => <option key={source} value={source}>{source}</option>)}
-                <option value="Other">其他来源</option>
+                <option value="Other">{t("其他来源")}</option>
               </select>
             </div>
             {sourceChoice === 'Other' ? (
               <div className="field">
-                <label htmlFor="entry-custom-source">自定义来源 <span className="field__optional">可选</span></label>
+                <label htmlFor="entry-custom-source">{t("自定义来源")} <span className="field__optional">{t("可选")}</span></label>
                 <input
                   id="entry-custom-source"
                   maxLength={120}
                   onChange={(event) => setCustomSource(event.target.value)}
-                  placeholder="例如：GitHub Discussion"
+                  placeholder={t("例如：GitHub Discussion")}
                   type="text"
                   value={customSource}
                 />

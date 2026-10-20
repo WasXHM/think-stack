@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 function replace(value, start, end, text, selectionStart, selectionEnd = selectionStart) {
   return { value: value.slice(0, start) + text + value.slice(end), start: start + selectionStart, end: start + selectionEnd };
 }
@@ -56,17 +57,17 @@ function formatLines(value, start, end, command) {
 
 export function formatMarkdown(value, start, end, command, maxLength = 500000) {
   let result;
-  const inline = { bold: ['**', '加粗文本'], italic: ['_', '斜体文本'], strike: ['~~', '删除线文本'] };
+  const inline = { bold: ['**', t("加粗文本")], italic: ['_', t("斜体文本")], strike: ['~~', t("删除线文本")] };
   if (inline[command]) {
     result = wrap(value, start, end, ...inline[command]);
   } else if (command === 'inlineCode') {
-    const content = value.slice(start, end) || '代码';
+    const content = value.slice(start, end) || t("代码");
     const longest = Math.max(0, ...(content.match(/`+/g) ?? []).map((run) => run.length));
     const marker = '`'.repeat(longest + 1);
     const padding = content.startsWith('`') || content.endsWith('`') ? ' ' : '';
     result = replace(value, start, end, marker + padding + content + padding + marker, marker.length + padding.length, marker.length + padding.length + content.length);
   } else if (command === 'link') {
-    const content = (value.slice(start, end) || '链接文本').replace(/[\\[\]]/g, '\\$&');
+    const content = (value.slice(start, end) || t("链接文本")).replace(/[\\[\]]/g, '\\$&');
     const prefix = `[${content}](`;
     result = replace(value, start, end, `${prefix}https://)`, prefix.length, prefix.length + 8);
   } else if (command === 'codeBlock' || command === 'divider') {
@@ -74,7 +75,7 @@ export function formatMarkdown(value, start, end, command, maxLength = 500000) {
     const after = value.slice(end);
     const leading = before ? (before.endsWith('\n\n') ? '' : before.endsWith('\n') ? '\n' : '\n\n') : '';
     const trailing = after ? (after.startsWith('\n\n') ? '' : after.startsWith('\n') ? '\n' : '\n\n') : '\n';
-    const content = value.slice(start, end) || '代码';
+    const content = value.slice(start, end) || t("代码");
     const fence = '`'.repeat(Math.max(3, 1 + Math.max(0, ...(content.match(/`+/g) ?? []).map((run) => run.length))));
     const block = command === 'divider' ? '---' : `${fence}\n${content}\n${fence}`;
     const cursor = leading.length + (command === 'divider' ? block.length + trailing.length : fence.length + 1);
@@ -82,8 +83,8 @@ export function formatMarkdown(value, start, end, command, maxLength = 500000) {
   } else if (/^h[1-6]$/.test(command) || ['paragraph', 'quote', 'unorderedList', 'orderedList', 'taskList'].includes(command)) {
     result = formatLines(value, start, end, command);
   } else {
-    throw new Error('不支持的 Markdown 格式。');
+    throw new Error(t("不支持的 Markdown 格式。"));
   }
-  if (result.value.length > maxLength) throw new Error('格式设置后超过正文长度限制，请缩短内容后重试。');
+  if (result.value.length > maxLength) throw new Error(t("格式设置后超过正文长度限制，请缩短内容后重试。"));
   return result;
 }

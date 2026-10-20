@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 import React, { useRef } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -18,7 +19,7 @@ export default function Drawer({
 }) {
   const panelRef = useRef(null);
   const workspaceDialog = presentation === 'workspace-dialog';
-  const closeLabel = workspaceDialog ? '关闭编辑弹窗' : '关闭编辑面板';
+  const closeLabel = workspaceDialog ? t("关闭编辑弹窗") : t("关闭编辑面板");
   useDialogFocus({
     open,
     containerRef: panelRef,

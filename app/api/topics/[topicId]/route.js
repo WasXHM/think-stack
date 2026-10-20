@@ -1,16 +1,18 @@
+import { filterUpdateTopic } from '../../../../webapi/src/modules/topics/filter.js';
+export const dynamic = 'force-dynamic';
 import { withWriteAuth } from '../../../../lib/auth.js';
 import { getTopicStore } from '../../../../lib/topic-store.js';
 
-export async function GET(_request, { params }) {
-  return Response.json({ data: await getTopicStore().getTopic(params.topicId) });
+export async function GET(request, { params }) {
+  return Response.json({ data: await getTopicStore(request).getTopic(params.topicId) });
 }
 
 async function handlePATCH(request, { params }) {
-  return Response.json({ data: await getTopicStore().updateTopic(params.topicId, await request.json()) });
+  return Response.json({ data: await getTopicStore(request).updateTopic(params.topicId, filterUpdateTopic(await request.json())) });
 }
 
-async function handleDELETE(_request, { params }) {
-  await getTopicStore().deleteTopic(params.topicId);
+async function handleDELETE(request, { params }) {
+  await getTopicStore(request).deleteTopic(params.topicId);
   return new Response(null, { status: 204 });
 }
 

@@ -1,8 +1,10 @@
+import { filterCreateUnderstanding } from '../../../../../webapi/src/modules/topics/filter.js';
+export const dynamic = 'force-dynamic';
 import { withWriteAuth } from '../../../../../lib/auth.js';
 import { getTopicStore } from '../../../../../lib/topic-store.js';
 
 async function handlePOST(request, { params }) {
-  return Response.json({ data: await getTopicStore().createUnderstanding(params.topicId, await request.json()) }, { status: 201 });
+  return Response.json({ data: await getTopicStore(request).createUnderstanding(params.topicId, filterCreateUnderstanding(await request.json())) }, { status: 201 });
 }
 
 export const POST = withWriteAuth(handlePOST);

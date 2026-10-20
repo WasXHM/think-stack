@@ -219,3 +219,33 @@ npm run import:resources   # 按提示输入 SSH 密码，只需执行一次
 Next.js 和 Koa 两套 API 均在服务端校验所有写请求，未登录返回 `401`。登录使用 HttpOnly、SameSite=Strict Cookie，会话有效期为 7 天；退出会删除服务端会话。写请求还需携带 `X-ThinkStack-Request: 1`（共享前端 HTTP 客户端已自动添加）。
 
 首次启动或登录时，自动在当前 `RESOURCES_DIR` 下初始化 `auth/users.json`，仅保存用户名、随机盐和 scrypt 密码哈希；会话存入 `auth/sessions/*.json`，文件名为令牌哈希。重启保留登录状态，初始化不会覆盖已有用户文件。默认目录为 `webapi/resources/auth/`，已排除在 Git 之外；部署时保留这一数据目录。不要将 resources 目录整体作为静态文件目录对外公开。
+
+### 中英文界面与文章版本
+
+右上角语言选择器支持中文和 English，选择保存在当前浏览器。界面映射资源位于 `webapp/src/i18n/zh.js` 和 `en.js`；`t()` 支持带命名参数的文案。分类名称是用户数据，共用一套名称及顺序；只有系统「默认分类」会显示为 Default。不会自动翻译已有文章或分类名称。
+
+文章按主题、外部解答、理解记录分别读取语言版本：英文模式优先英文，缺失时回退到对应中文内容；中文模式优先中文。英文模式新建但尚无中文的内容，在中文模式也会显示已有英文，以免内容消失。
+
+```text
+resources/topics/<topicId>/
+  topic.json                             # 共享元数据及原有中文 title/question
+  topic.en.json                          # 英文 title/question
+  external-answers/<answerId>.json        # 共享元数据及中文 source/content
+  external-answers/<answerId>.en.json     # 英文 source/content
+  understandings/<understandingId>.json   # 共享元数据及中文 content
+  understandings/<understandingId>.en.json # 英文 content
+```
+
+英文资源是只包含正文相关字段的 JSON。例如 `topic.en.json`：
+
+```json
+{ "title": "English title", "question": "English Markdown content" }
+```
+
+英文新建记录的基础 `.json` 仅保存 ID、关联关系和时间等元数据，正文只写入 `.en.json`，不生成伪中文。后续在中文模式编辑时才保存中文正文。英文编辑不会覆盖原有中文正文，反之亦然。英文文件不存在时，浏览和修改分类都不会主动生成英文文章文件。可手工维护 `.en.json`；未提供的字段会回退到中文字段。
+
+前端请求自动携带 `lang=zh|en` 和 `X-ThinkStack-Language`；两套 API 均按请求独立处理语言，不使用跨请求的全局语言状态。列表、搜索和详情均按所选语言读取。分类归属、排序、记录 ID 和时间是共享元数据。删除主题或记录会删除所有语言版本；删除分类仍将主题的所有语言版本转移到默认分类。
+
+编辑器显示当前保存语言。切换语言前会提示放弃尚未保存的表单，保存或上传期间禁用切换。外部解答和理解记录的临时草稿按语言隔离。
+
+验证命令：`npm test`、`npm run build`、`node scripts/auth-next-smoke.mjs`。最后一个命令使用隔离的临时 Next.js 服务，验证真实 HTTP 登录和中英文读写，不修改当前文章资源。

@@ -1,3 +1,4 @@
+import { currentLocale } from '../core/locale.js';
 import {
   mkdir,
   readFile,
@@ -262,7 +263,7 @@ export class FileTopicStore {
         await mkdir(topicDirectory);
         await mkdir(this.#collectionDirectory(id, EXTERNAL_ANSWERS_DIRECTORY));
         await mkdir(this.#collectionDirectory(id, UNDERSTANDINGS_DIRECTORY));
-        await this.#writeTopicRecord(topic);
+        await this.#writeTopicRecord(topic, true);
         return this.#decorateTopic(topic, [], []);
       } catch (error) {
         await rm(topicDirectory, { recursive: true, force: true }).catch(() => {});
@@ -279,7 +280,7 @@ export class FileTopicStore {
         const current = await this.#readTopicRecord(normalizedTopicId);
         if (Object.hasOwn(changes, 'categoryId')) await this.#requireCategory(changes.categoryId);
         const updated = updateTopicRecord(current, changes, nextTimestamp(current.updatedAt));
-        await this.#writeTopicRecord(updated);
+        await this.#writeTopicRecord(updated, Object.hasOwn(changes, 'title') || Object.hasOwn(changes, 'question'));
         const [externalAnswers, understandings] = await Promise.all([
           this.#readCollection(normalizedTopicId, EXTERNAL_ANSWERS_DIRECTORY),
           this.#readCollection(normalizedTopicId, UNDERSTANDINGS_DIRECTORY),
@@ -455,6 +456,7 @@ export class FileTopicStore {
           throw error;
         }
         await unlink(tombstoneFile).catch(() => {});
+        await unlink(this.#englishFile(childFile)).catch((error) => { if (error.code !== 'ENOENT') throw error; });
       } catch (error) {
         throw this.#mapStorageError(error, `Unable to delete content from topic ${normalizedTopicId}`);
       }
@@ -488,17 +490,18 @@ export class FileTopicStore {
 
   async #readTopicRecord(topicId) {
     const value = await this.#readJson(this.#topicFile(topicId), () => topicNotFound(topicId));
-    return deserializeTopic(value);
+    return deserializeTopic(await this.#localizedRecord(this.#topicFile(topicId), value, ['title', 'question']));
   }
 
   async #readChildRecord(topicId, collection, childId) {
     const kind = collection === EXTERNAL_ANSWERS_DIRECTORY
       ? 'external-answer'
       : 'understanding';
-    const value = await this.#readJson(
+    let value = await this.#readJson(
       this.#childFile(topicId, collection, childId),
       () => childNotFound(kind, childId, topicId),
     );
+    value = await this.#localizedRecord(this.#childFile(topicId, collection, childId), value, collection === EXTERNAL_ANSWERS_DIRECTORY ? ['source', 'content'] : ['content']);
     const child = collection === EXTERNAL_ANSWERS_DIRECTORY
       ? deserializeExternalAnswer(value)
       : deserializeUnderstanding(value);
@@ -662,15 +665,61 @@ export class FileTopicStore {
     }
   }
 
-  #writeTopicRecord(topic) {
-    return this.#atomicWriteJson(this.#topicFile(topic.id), serializeTopic(topic));
+  #englishFile(filePath) {
+    return filePath.replace(/\.json$/, '.en.json');
+  }
+
+  async #optionalJson(filePath) {
+    return this.#readJson(filePath, () => new NotFoundError('Language resource not found'))
+      .catch((error) => { if (error instanceof NotFoundError) return null; throw error; });
+  }
+
+  async #localizedRecord(filePath, base, fields) {
+    const hasChinese = fields.every((field) => typeof base[field] === 'string' && base[field].trim());
+    if (currentLocale() === 'zh' && hasChinese) return base;
+    const english = await this.#optionalJson(this.#englishFile(filePath));
+    if (!english) return base;
+    // Only content fields can be localized; IDs, category and timestamps remain shared.
+    const content = Object.fromEntries(fields.filter((field) => typeof english[field] === 'string' && english[field].trim()).map((field) => [field, english[field]]));
+    return { ...base, ...content };
+  }
+
+  async #writeLocalizedRecord(filePath, record, fields, writeContent) {
+    const existing = await this.#optionalJson(filePath);
+    const base = { ...(existing ?? {}), ...record };
+    // Never copy the displayed fallback/translation into the other language.
+    for (const field of fields) {
+      if (existing && Object.hasOwn(existing, field)) base[field] = existing[field];
+      else delete base[field];
+    }
+    const englishPath = this.#englishFile(filePath);
+    let previousEnglish;
+    if (writeContent && currentLocale() === 'en') {
+      previousEnglish = await this.#optionalJson(englishPath);
+      await this.#atomicWriteJson(englishPath, Object.fromEntries(fields.map((field) => [field, record[field]])));
+    } else if (writeContent) {
+      for (const field of fields) base[field] = record[field];
+    }
+    try {
+      await this.#atomicWriteJson(filePath, base);
+    } catch (error) {
+      if (writeContent && currentLocale() === 'en') {
+        if (previousEnglish) await this.#atomicWriteJson(englishPath, previousEnglish);
+        else await unlink(englishPath).catch(() => {});
+      }
+      throw error;
+    }
+  }
+
+  #writeTopicRecord(topic, writeContent = false) {
+    return this.#writeLocalizedRecord(this.#topicFile(topic.id), serializeTopic(topic), ['title', 'question'], writeContent);
   }
 
   #writeChildRecord(collection, filePath, child) {
     const serialized = collection === EXTERNAL_ANSWERS_DIRECTORY
       ? serializeExternalAnswer(child)
       : serializeUnderstanding(child);
-    return this.#atomicWriteJson(filePath, serialized);
+    return this.#writeLocalizedRecord(filePath, serialized, collection === EXTERNAL_ANSWERS_DIRECTORY ? ['source', 'content'] : ['content'], true);
   }
 
   #topicDirectory(topicId) {

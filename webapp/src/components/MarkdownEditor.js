@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 import React, { useEffect, useId, useRef, useState } from 'react';
 
 import { uploadImage as defaultUploadImage } from '../services/images.js';
@@ -16,7 +17,7 @@ export default function MarkdownEditor({
   error,
   helper,
   required = false,
-  placeholder = '使用 Markdown 记录内容…',
+  placeholder = t("使用 Markdown 记录内容…"),
   minHeight = 360,
   previewOnDemand = false,
   fillAvailable = false,
@@ -97,13 +98,13 @@ export default function MarkdownEditor({
       const urls = [];
       for (const file of files) urls.push(await uploadImage(file, { signal: controller.signal }));
       if (controller.signal.aborted || uploadRef.current !== controller) return;
-      if (currentValueRef.current !== original) throw new Error('正文已发生变化，请在新的光标位置重新粘贴图片。');
+      if (currentValueRef.current !== original) throw new Error(t("正文已发生变化，请在新的光标位置重新粘贴图片。"));
       const inserted = insertMarkdownImages(original, start, end, urls, maxLength);
       caretRef.current = { start: inserted.caret, end: inserted.caret };
       onChangeRef.current(inserted.value);
     } catch (error) {
       if (uploadRef.current === controller) {
-        setUploadError(error.name === 'AbortError' ? '图片上传超时，请重新粘贴或选择图片重试。' : getErrorMessage(error, '图片上传失败，请重试。'));
+        setUploadError(error.name === 'AbortError' ? t("图片上传超时，请重新粘贴或选择图片重试。") : getErrorMessage(error, t("图片上传失败，请重试。")));
       }
     } finally {
       clearTimeout(timeout);
@@ -154,10 +155,10 @@ export default function MarkdownEditor({
             size="small"
             type="button"
           >
-            {mobileMode === 'edit' ? '打开预览' : '返回编辑'}
+            {mobileMode === 'edit' ? t("打开预览") : t("返回编辑")}
           </Button>
         ) : (
-          <div aria-label="Markdown 编辑视图" className="markdown-editor__tabs">
+          <div aria-label={t("Markdown 编辑视图")} className="markdown-editor__tabs">
             <button
               disabled={uploading}
               aria-controls={`${fieldId}-edit-pane`}
@@ -165,9 +166,7 @@ export default function MarkdownEditor({
               className={mobileMode === 'edit' ? 'is-active' : ''}
               onClick={() => setMobileMode('edit')}
               type="button"
-            >
-              编辑
-            </button>
+            > {t("编辑")} </button>
             <button
               disabled={uploading}
               aria-controls={`${fieldId}-preview-pane`}
@@ -175,9 +174,7 @@ export default function MarkdownEditor({
               className={mobileMode === 'preview' ? 'is-active' : ''}
               onClick={() => setMobileMode('preview')}
               type="button"
-            >
-              预览
-            </button>
+            > {t("预览")} </button>
           </div>
         )}
       </div>
@@ -193,7 +190,7 @@ export default function MarkdownEditor({
         accept={IMAGE_ACCEPT}
         multiple
         tabIndex={-1}
-        aria-label="选择图片"
+        aria-label={t("选择图片")}
         disabled={disabled || uploading}
         onChange={(event) => {
           const files = Array.from(event.target.files ?? []);
@@ -202,13 +199,13 @@ export default function MarkdownEditor({
         }}
       />
       <p className="field__help markdown-editor__upload-status" role="status">
-        {uploading ? '正在上传图片，请稍候…' : '可在光标处粘贴截图（⌘V / Ctrl+V），单张最大 10 MB。'}
+        {uploading ? t("正在上传图片，请稍候…") : t("可在光标处粘贴截图（⌘V / Ctrl+V），单张最大 10 MB。")}
       </p>
       {uploadError ? <p className="field__error" role="alert">{uploadError}</p> : null}
       <div className={`markdown-editor__panes is-${mobileMode}`}>
         {!previewOnDemand || mobileMode === 'edit' ? (
           <section
-            aria-label="Markdown 编辑"
+            aria-label={t("Markdown 编辑")}
             className="markdown-editor__pane markdown-editor__pane--edit"
             id={`${fieldId}-edit-pane`}
           >
@@ -234,16 +231,16 @@ export default function MarkdownEditor({
         ) : null}
         {!previewOnDemand || mobileMode === 'preview' ? (
           <section
-            aria-label="Markdown 预览"
+            aria-label={t("Markdown 预览")}
             className="markdown-editor__pane markdown-editor__pane--preview"
             id={`${fieldId}-preview-pane`}
           >
-            <p className="markdown-editor__pane-label">预览</p>
+            <p className="markdown-editor__pane-label">{t("预览")}</p>
             <div className="markdown-editor__preview" style={fillAvailable ? undefined : { minHeight }}>
               {value.trim() ? (
                 <MarkdownContent>{value}</MarkdownContent>
               ) : (
-                <p className="markdown-editor__placeholder">输入内容后，可在这里检查排版。</p>
+                <p className="markdown-editor__placeholder">{t("输入内容后，可在这里检查排版。")}</p>
               )}
             </div>
           </section>

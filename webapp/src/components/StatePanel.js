@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 import React from 'react';
 
 import { Button, ButtonLink } from './Button.js';
@@ -39,7 +40,7 @@ export default function StatePanel({
 
 export function TopicListSkeleton({ rows = 4 }) {
   return (
-    <div className="topic-list topic-list--skeleton" aria-label="正在读取思考主题" role="status">
+    <div className="topic-list topic-list--skeleton" aria-label={t("正在读取思考主题")} role="status">
       {Array.from({ length: rows }, (_, index) => (
         <div className="topic-row topic-row--skeleton" key={index} aria-hidden="true">
           <div className="skeleton skeleton--title" />
@@ -47,14 +48,14 @@ export function TopicListSkeleton({ rows = 4 }) {
           <div className="skeleton skeleton--meta" />
         </div>
       ))}
-      <span className="sr-only">正在读取思考主题…</span>
+      <span className="sr-only">{t("正在读取思考主题…")}</span>
     </div>
   );
 }
 
 export function DetailSkeleton() {
   return (
-    <div className="detail-skeleton" aria-label="正在读取主题详情" role="status">
+    <div className="detail-skeleton" aria-label={t("正在读取主题详情")} role="status">
       <div className="skeleton skeleton--eyebrow" />
       <div className="skeleton skeleton--hero" />
       <div className="skeleton skeleton--text" />
@@ -63,7 +64,7 @@ export function DetailSkeleton() {
         <div className="skeleton skeleton--paragraph" />
         <div className="skeleton skeleton--paragraph-short" />
       </div>
-      <span className="sr-only">正在读取主题详情…</span>
+      <span className="sr-only">{t("正在读取主题详情…")}</span>
     </div>
   );
 }

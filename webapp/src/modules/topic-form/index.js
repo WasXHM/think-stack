@@ -1,3 +1,5 @@
+import { EditingLanguageNotice } from '../../i18n/LanguageProvider.js';
+import { t } from '../../i18n/index.js';
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
@@ -16,10 +18,10 @@ import { getErrorMessage } from '../../utils/format.js';
 function validate(values) {
   const errors = {};
   if (!values.title.trim()) {
-    errors.title = '请输入一句能够识别这个问题的标题。';
+    errors.title = t("请输入一句能够识别这个问题的标题。");
   }
   if (!values.question.trim()) {
-    errors.question = '请记录当时产生疑问的上下文。';
+    errors.question = t("请记录当时产生疑问的上下文。");
   }
   return errors;
 }
@@ -42,7 +44,9 @@ export default function TopicFormModule({ mode }) {
   const [submitError, setSubmitError] = useState('');
   const mountedRef = useRef(true);
 
-  usePageTitle(editing ? (topic?.title ? `编辑 ${topic.title}` : '编辑主题') : '新建思考');
+  usePageTitle(editing ? (topic?.title ? t("编辑 {p0}", {
+  p0: topic.title
+}) : t("编辑主题")) : t("新建思考"));
 
   useEffect(() => {
     mountedRef.current = true;
@@ -66,7 +70,7 @@ export default function TopicFormModule({ mode }) {
       })
       .catch((error) => {
         if (error.name !== 'AbortError') {
-          setLoadError(getErrorMessage(error, '暂时无法读取这个主题。'));
+          setLoadError(getErrorMessage(error, t("暂时无法读取这个主题。")));
           setLoadStatus(error.status === 404 ? 'not-found' : 'error');
         }
       });
@@ -108,11 +112,11 @@ export default function TopicFormModule({ mode }) {
       }
       const savedId = saved?.id ?? topicId;
       selectCategory(saved?.categoryId ?? 'default');
-      notify(editing ? '主题已更新。' : '新思考已创建。');
+      notify(editing ? t("主题已更新。") : t("新思考已创建。"));
       navigate(`/topics/${savedId}`, { replace: true });
     } catch (error) {
       if (mountedRef.current) {
-        setSubmitError(getErrorMessage(error, '内容没有保存，请重新尝试。'));
+        setSubmitError(getErrorMessage(error, t("内容没有保存，请重新尝试。")));
         setSubmitting(false);
       }
     }
@@ -126,15 +130,15 @@ export default function TopicFormModule({ mode }) {
     return (
       <div className="page page--narrow">
         <StatePanel
-          actionLabel="返回全部思考"
+          actionLabel={t("返回全部思考")}
           actionTo="/"
           description={
             loadStatus === 'not-found'
-              ? '这个主题可能已被删除或移动。'
+              ? t("这个主题可能已被删除或移动。")
               : loadError
           }
           icon="alert"
-          title={loadStatus === 'not-found' ? '没有找到这个主题' : '主题暂时无法读取'}
+          title={loadStatus === 'not-found' ? t("没有找到这个主题") : t("主题暂时无法读取")}
           tone={loadStatus === 'not-found' ? 'neutral' : 'error'}
         />
       </div>
@@ -146,26 +150,25 @@ export default function TopicFormModule({ mode }) {
       <PageHeader
         actions={(
           submitting ? (
-            <Button disabled type="button" variant="secondary">取消</Button>
+            <Button disabled type="button" variant="secondary">{t("取消")}</Button>
           ) : (
-            <ButtonLink to={editing ? `/topics/${topicId}` : '/'} variant="secondary">
-              取消
-            </ButtonLink>
+            <ButtonLink to={editing ? `/topics/${topicId}` : '/'} variant="secondary"> {t("取消")} </ButtonLink>
           )
         )}
         description={
           editing
-            ? '修改所属分类、标题或最初的问题语境，不会改变已保存的外部解答和理解记录。'
-            : '先保存真实的问题语境，再逐步补充资料和阶段性理解。'
+            ? t("修改所属分类、标题或最初的问题语境，不会改变已保存的外部解答和理解记录。")
+            : t("先保存真实的问题语境，再逐步补充资料和阶段性理解。")
         }
         eyebrow={editing ? 'EDIT TOPIC' : 'NEW TOPIC'}
-        title={editing ? '编辑思考主题' : '记录一个新问题'}
+        title={editing ? t("编辑思考主题") : t("记录一个新问题")}
       />
 
+      <EditingLanguageNotice />
       <form className="topic-form-layout" noValidate onSubmit={submit}>
         <div className="topic-form-layout__main">
           <div className="field">
-            <label htmlFor="topic-title">主题标题 <span aria-hidden="true">*</span></label>
+            <label htmlFor="topic-title">{t("主题标题")} <span aria-hidden="true">*</span></label>
             <input
               aria-describedby={errors.title ? 'topic-title-error' : 'topic-title-help'}
               aria-invalid={Boolean(errors.title)}
@@ -173,30 +176,30 @@ export default function TopicFormModule({ mode }) {
               id="topic-title"
               maxLength={200}
               onChange={(event) => updateValue('title', event.target.value)}
-              placeholder="例如：MCP 与 API 网关的边界是什么"
+              placeholder={t("例如：MCP 与 API 网关的边界是什么")}
               type="text"
               value={values.title}
             />
-            <p className="field__help" id="topic-title-help">用一句话标记你真正想厘清的问题。</p>
+            <p className="field__help" id="topic-title-help">{t("用一句话标记你真正想厘清的问题。")}</p>
             {errors.title ? <p className="field__error" id="topic-title-error" role="alert">{errors.title}</p> : null}
           </div>
 
           <div className="field">
-            <label htmlFor="topic-category">分类 <span className="field__help">（选填）</span></label>
+            <label htmlFor="topic-category">{t("分类")} <span className="field__help">{t("（选填）")}</span></label>
             <select disabled={submitting} id="topic-category" value={values.categoryId} onChange={(event) => updateValue('categoryId', event.target.value)}>
               {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
             </select>
-            <p className="field__help">未指定分类时归入默认分类。</p>
+            <p className="field__help">{t("未指定分类时归入默认分类。")}</p>
           </div>
           <MarkdownEditor
             disabled={submitting}
             onUploadStateChange={setUploading}
             error={errors.question}
-            helper="支持 Markdown、代码块、表格、列表和链接。"
+            helper={t("支持 Markdown、代码块、表格、列表和链接。")}
             id="topic-question"
-            label="原始问题"
+            label={t("原始问题")}
             onChange={(value) => updateValue('question', value)}
-            placeholder={'记录你当时为什么产生这个问题。\n\n可以补充已有背景、困惑边界和希望验证的判断。'}
+            placeholder={t("记录你当时为什么产生这个问题。\n\n可以补充已有背景、困惑边界和希望验证的判断。")}
             required
             value={values.question}
           />
@@ -206,46 +209,44 @@ export default function TopicFormModule({ mode }) {
             <Button
               disabled={uploading}
               busy={submitting}
-              busyLabel={editing ? '正在保存…' : '正在创建…'}
+              busyLabel={editing ? t("正在保存…") : t("正在创建…")}
               size="large"
               type="submit"
               variant="primary"
             >
-              {editing ? '保存修改' : '创建思考'}
+              {editing ? t("保存修改") : t("创建思考")}
             </Button>
             {submitting ? (
-              <Button disabled size="large" type="button">取消</Button>
+              <Button disabled size="large" type="button">{t("取消")}</Button>
             ) : (
-              <ButtonLink size="large" to={editing ? `/topics/${topicId}` : '/'}>
-                取消
-              </ButtonLink>
+              <ButtonLink size="large" to={editing ? `/topics/${topicId}` : '/'}> {t("取消")} </ButtonLink>
             )}
           </div>
         </div>
 
-        <aside className="topic-form-aside" aria-label="记录说明">
+        <aside className="topic-form-aside" aria-label={t("记录说明")}>
           <div className="aside-section">
             <Icon name="lightbulb" size={21} />
-            <h2>保留问题的起点</h2>
-            <p>原始问题不是文章摘要。请保留当时不知道什么、为何困惑，以及你已经做出的判断。</p>
+            <h2>{t("保留问题的起点")}</h2>
+            <p>{t("原始问题不是文章摘要。请保留当时不知道什么、为何困惑，以及你已经做出的判断。")}</p>
           </div>
           {editing ? (
             <div className="aside-section aside-section--warning">
               <Icon name="alert" size={20} />
-              <h2>这是起点记录</h2>
-              <p>修改原始问题会改变这条主题的起点。新的认识请在详情页追加“我的理解”。</p>
+              <h2>{t("这是起点记录")}</h2>
+              <p>{t("修改原始问题会改变这条主题的起点。新的认识请在详情页追加“我的理解”。")}</p>
             </div>
           ) : (
             <div className="aside-section">
               <Icon name="book" size={20} />
-              <h2>下一步</h2>
-              <p>保存后将进入主题详情，你可以继续粘贴外部解答并记录自己的理解。</p>
+              <h2>{t("下一步")}</h2>
+              <p>{t("保存后将进入主题详情，你可以继续粘贴外部解答并记录自己的理解。")}</p>
             </div>
           )}
           {topic ? (
             <dl className="aside-meta">
-              <div><dt>创建</dt><dd><DateTime value={topic.createdAt} /></dd></div>
-              <div><dt>更新</dt><dd><DateTime value={topic.updatedAt} /></dd></div>
+              <div><dt>{t("创建")}</dt><dd><DateTime value={topic.createdAt} /></dd></div>
+              <div><dt>{t("更新")}</dt><dd><DateTime value={topic.updatedAt} /></dd></div>
             </dl>
           ) : null}
         </aside>

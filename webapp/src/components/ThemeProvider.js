@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 import React, {
   createContext,
   useCallback,
@@ -50,11 +51,13 @@ export function ThemeProvider({ children }) {
 
 export function ThemeToggle() {
   const { theme, toggleTheme } = useContext(ThemeContext);
-  const nextTheme = theme === 'dark' ? '亮色' : '暗色';
+  const nextTheme = theme === 'dark' ? t("亮色") : t("暗色");
   return (
     <IconButton
       icon={theme === 'dark' ? 'sun' : 'moon'}
-      label={`切换到${nextTheme}主题`}
+      label={t("切换到{p0}主题", {
+  p0: nextTheme
+})}
       onClick={toggleTheme}
     />
   );

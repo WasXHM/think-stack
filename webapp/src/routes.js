@@ -1,3 +1,5 @@
+import { LanguageProvider, useLanguage } from './i18n/LanguageProvider.js';
+import { t } from './i18n/index.js';
 import { RequireEditor } from './components/AuthContext.js';
 import React, { lazy, Suspense } from 'react';
 import { Route, Routes } from 'react-router-dom';
@@ -12,7 +14,7 @@ const TopicFormModule = lazy(() => import('./modules/topic-form/index.js'));
 function SuspendedRoute({ children }) {
   return (
     <Suspense fallback={(
-      <div aria-busy="true" aria-label="正在载入页面" className="page route-loading" role="status">
+      <div aria-busy="true" aria-label={t("正在载入页面")} className="page route-loading" role="status">
         <div className="skeleton skeleton--eyebrow" />
         <div className="skeleton skeleton--title" />
         <div className="skeleton skeleton--line" />
@@ -25,9 +27,10 @@ function SuspendedRoute({ children }) {
   );
 }
 
-export default function AppRoutes() {
+function LocalizedRoutes() {
+  const { locale } = useLanguage();
   return (
-    <Routes>
+    <Routes key={locale}>
       <Route element={<AppLayout />}>
         <Route index element={<SuspendedRoute><HomeModule /></SuspendedRoute>} />
         <Route path="topics/new" element={<SuspendedRoute><RequireEditor><TopicFormModule mode="create" /></RequireEditor></SuspendedRoute>} />
@@ -37,4 +40,8 @@ export default function AppRoutes() {
       </Route>
     </Routes>
   );
+}
+
+export default function AppRoutes() {
+  return <LanguageProvider><LocalizedRoutes /></LanguageProvider>;
 }

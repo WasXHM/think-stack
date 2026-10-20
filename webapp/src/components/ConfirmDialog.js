@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
@@ -9,7 +10,7 @@ export default function ConfirmDialog({
   open,
   title,
   description,
-  confirmLabel = '确认删除',
+  confirmLabel = t("确认删除"),
   onCancel,
   onConfirm,
 }) {
@@ -41,7 +42,7 @@ export default function ConfirmDialog({
     try {
       await onConfirm();
     } catch (confirmError) {
-      setError(confirmError?.message || '删除未完成，请重新尝试。');
+      setError(confirmError?.message || t("删除未完成，请重新尝试。"));
       setBusy(false);
     }
   }
@@ -49,7 +50,7 @@ export default function ConfirmDialog({
   return createPortal(
     <div className="overlay-layer overlay-layer--dialog">
       <button
-        aria-label="取消删除"
+        aria-label={t("取消删除")}
         className="overlay-backdrop"
         disabled={busy}
         onClick={onCancel}
@@ -72,12 +73,10 @@ export default function ConfirmDialog({
         </div>
         {error ? <p className="form-error" role="alert">{error}</p> : null}
         <div className="confirm-dialog__actions">
-          <Button data-autofocus disabled={busy} onClick={onCancel}>
-            取消
-          </Button>
+          <Button data-autofocus disabled={busy} onClick={onCancel}> {t("取消")} </Button>
           <Button
             busy={busy}
-            busyLabel="正在删除…"
+            busyLabel={t("正在删除…")}
             onClick={handleConfirm}
             variant="danger"
           >

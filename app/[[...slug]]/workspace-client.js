@@ -7,7 +7,7 @@ import AppRoutes from '../../webapp/src/routes.js';
 export default function WorkspaceClient() {
   return (
     <BrowserRouter basename="/think-stack">
-      <Suspense fallback={<div className="page route-loading" aria-busy="true">正在载入页面…</div>}>
+      <Suspense fallback={<div className="page route-loading" aria-busy="true">正在载入页面… / Loading…</div>}>
         <AppRoutes />
       </Suspense>
     </BrowserRouter>

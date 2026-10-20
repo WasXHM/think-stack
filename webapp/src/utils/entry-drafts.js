@@ -1,3 +1,4 @@
+import { getLanguage } from '../i18n/index.js';
 const DRAFT_PREFIX = 'think-stack:entry-draft:v1';
 
 function storage() {
@@ -11,7 +12,7 @@ function storage() {
 export function entryDraftKey(topicId, kind) {
   const type = kind === 'answer' ? 'answer' : kind === 'understanding' ? 'understanding' : null;
   if (!topicId || !type) return null;
-  return `${DRAFT_PREFIX}:${encodeURIComponent(String(topicId))}:${type}`;
+  return `${DRAFT_PREFIX}${getLanguage() === 'en' ? ':en' : ''}:${encodeURIComponent(String(topicId))}:${type}`;
 }
 
 export function readEntryDraft(topicId, kind) {

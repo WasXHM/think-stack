@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
@@ -54,14 +55,18 @@ export default function CategoryMenu({ category, onNavigate }) {
     }
   }
   return <>
-    <button ref={trigger} type="button" className="category-menu-trigger" aria-label={`${category.name}分类操作`} aria-haspopup="menu" aria-expanded={Boolean(position)} aria-controls={position ? id : undefined} onClick={toggle}>
+    <button ref={trigger} type="button" className="category-menu-trigger" aria-label={t("{p0}分类操作", {
+  p0: category.name
+})} aria-haspopup="menu" aria-expanded={Boolean(position)} aria-controls={position ? id : undefined} onClick={toggle}>
       <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor" aria-hidden="true"><circle cx="9" cy="4" r="1.5" /><circle cx="9" cy="9" r="1.5" /><circle cx="9" cy="14" r="1.5" /></svg>
     </button>
-    {position ? createPortal(<div ref={menu} id={id} role="menu" aria-label={`${category.name}分类操作`} className="category-menu" style={position} onKeyDown={keyDown}>
-      <button type="button" role="menuitem" onClick={() => run(() => { selectCategory(category.id); navigate(`/topics/new?categoryId=${encodeURIComponent(category.id)}`); })}>新建思考</button>
+    {position ? createPortal(<div ref={menu} id={id} role="menu" aria-label={t("{p0}分类操作", {
+  p0: category.name
+})} className="category-menu" style={position} onKeyDown={keyDown}>
+      <button type="button" role="menuitem" onClick={() => run(() => { selectCategory(category.id); navigate(`/topics/new?categoryId=${encodeURIComponent(category.id)}`); })}>{t("新建思考")}</button>
       {category.id !== 'default' ? <>
-        <button type="button" role="menuitem" onClick={() => run(() => openEditCategory(category))}>编辑</button>
-        <button type="button" role="menuitem" className="category-menu__danger" onClick={() => run(() => openDeleteCategory(category))}>删除</button>
+        <button type="button" role="menuitem" onClick={() => run(() => openEditCategory(category))}>{t("编辑")}</button>
+        <button type="button" role="menuitem" className="category-menu__danger" onClick={() => run(() => openDeleteCategory(category))}>{t("删除")}</button>
       </> : null}
     </div>, document.body) : null}
   </>;

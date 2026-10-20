@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
 
 import { IconButton } from './Button.js';
@@ -31,7 +32,7 @@ export function ToastProvider({ children }) {
         >
           <Icon name={toast.tone === 'error' ? 'alert' : 'check'} size={19} />
           <span>{toast.message}</span>
-          <IconButton icon="close" label="关闭提示" onClick={dismiss} />
+          <IconButton icon="close" label={t("关闭提示")} onClick={dismiss} />
         </div>
       ) : null}
     </ToastContext.Provider>

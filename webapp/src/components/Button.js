@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 import React from 'react';
 import { Link } from 'react-router-dom';
 
@@ -12,7 +13,7 @@ export function Button({
   variant = 'secondary',
   size = 'normal',
   busy = false,
-  busyLabel = '正在处理…',
+  busyLabel = t("正在处理…"),
   className = '',
   disabled,
   ...props

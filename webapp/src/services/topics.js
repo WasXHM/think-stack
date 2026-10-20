@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.js';
 import { apiRequest } from './http.js';
 
 function unwrapData(payload) {
@@ -101,19 +102,22 @@ export async function deleteUnderstanding(topicId, understandingId) {
 
 
 export async function listCategories({ signal } = {}) {
-  return unwrapData(await apiRequest('/categories', { signal }));
+  const data = unwrapData(await apiRequest('/categories', { signal }));
+  return { ...data, items: data.items.map((item) => item.id === 'default' ? { ...item, name: t('默认分类') } : item) };
 }
 export async function createCategory(input) {
   return unwrapData(await apiRequest('/categories', { method: 'POST', body: input }));
 }
 
 export async function reorderCategories(categoryIds) {
-  return unwrapData(await apiRequest('/categories', { method: 'PATCH', body: { categoryIds } }));
+  const data = unwrapData(await apiRequest('/categories', { method: 'PATCH', body: { categoryIds } }));
+  return { ...data, items: data.items.map((item) => item.id === 'default' ? { ...item, name: t('默认分类') } : item) };
 }
 
 export async function renameCategory(id, input) {
   return unwrapData(await apiRequest(`/categories/${encodeURIComponent(id)}`, { method: 'PATCH', body: input }));
 }
 export async function deleteCategory(id) {
-  return unwrapData(await apiRequest(`/categories/${encodeURIComponent(id)}`, { method: 'DELETE' }));
+  const data = unwrapData(await apiRequest(`/categories/${encodeURIComponent(id)}`, { method: 'DELETE' }));
+  return { ...data, items: data.items.map((item) => item.id === 'default' ? { ...item, name: t('默认分类') } : item) };
 }

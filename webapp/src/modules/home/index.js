@@ -1,3 +1,4 @@
+import { t } from '../../i18n/index.js';
 import { useAuth } from '../../components/AuthContext.js';
 import { useCategories } from '../../components/CategoryContext.js';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -24,13 +25,13 @@ function CountStrip({ topics, total, filtered }) {
     0,
   );
   const metrics = [
-    { label: filtered ? '匹配主题' : '思考主题', value: total },
-    { label: '外部解答', value: externalAnswers },
-    { label: '理解记录', value: understandings },
+    { label: filtered ? t("匹配主题") : t("思考主题"), value: total },
+    { label: t("外部解答"), value: externalAnswers },
+    { label: t("理解记录"), value: understandings },
   ];
 
   return (
-    <dl className="count-strip" aria-label="思考记录统计">
+    <dl className="count-strip" aria-label={t("思考记录统计")}>
       {metrics.map((metric) => (
         <div key={metric.label}>
           <dt>{metric.label}</dt>
@@ -53,39 +54,45 @@ function TopicRow({ topic, onDelete }) {
         <Link className="topic-row__title" to={`/topics/${topic.id}`}>
           {topic.title}
         </Link>
-        <p className="topic-row__summary">{summary || '尚未记录原始问题摘要。'}</p>
+        <p className="topic-row__summary">{summary || t("尚未记录原始问题摘要。")}</p>
         <div className="topic-row__meta">
-          <span>{answerCount} 个外部解答</span>
+          <span>{answerCount} {t("个外部解答")}</span>
           <span aria-hidden="true">·</span>
-          <span>{understandingCount} 条我的理解</span>
+          <span>{understandingCount} {t("条我的理解")}</span>
           <span aria-hidden="true">·</span>
-          <DateTime prefix="更新于" value={topic.updatedAt} />
+          <DateTime prefix={t("更新于")} value={topic.updatedAt} />
         </div>
       </div>
       <div className="topic-row__actions">
         {canEdit && <><Link
-          aria-label={`编辑“${topic.title}”`}
+          aria-label={t("编辑“{p0}”", {
+  p0: topic.title
+})}
           className="icon-button"
-          title="编辑主题"
+          title={t("编辑主题")}
           to={`/topics/${topic.id}/edit`}
         >
           <Icon name="edit" size={18} />
         </Link>
         <button
-          aria-label={`删除“${topic.title}”`}
+          aria-label={t("删除“{p0}”", {
+  p0: topic.title
+})}
           className="icon-button icon-button--danger"
           onClick={() => onDelete(topic)}
-          title="删除主题"
+          title={t("删除主题")}
           type="button"
         >
           <Icon name="trash" size={18} />
         </button></>}
         <Link
-          aria-label={`打开“${topic.title}”`}
+          aria-label={t("打开“{p0}”", {
+  p0: topic.title
+})}
           className="topic-row__open"
           to={`/topics/${topic.id}`}
         >
-          <span>查看</span>
+          <span>{t("查看")}</span>
           <Icon name="arrowRight" size={18} />
         </Link>
       </div>
@@ -95,7 +102,7 @@ function TopicRow({ topic, onDelete }) {
 
 export default function HomeModule() {
   const { canEdit } = useAuth();
-  usePageTitle('思考主题');
+  usePageTitle(t("思考主题"));
   const { notify } = useToast();
   const { refreshTopicIndex } = useOutletContext();
   const { openCreateCategory, categoryRevision } = useCategories();
@@ -133,7 +140,7 @@ export default function HomeModule() {
       })
       .catch((loadError) => {
         if (loadError.name !== 'AbortError') {
-          setError(getErrorMessage(loadError, '暂时无法读取思考主题。'));
+          setError(getErrorMessage(loadError, t("暂时无法读取思考主题。")));
           setStatus('error');
         }
       });
@@ -161,7 +168,9 @@ export default function HomeModule() {
     await deleteTopic(deleteTarget.id);
     const deletedTitle = deleteTarget.title;
     setDeleteTarget(null);
-    notify(`已删除“${deletedTitle}”。`);
+    notify(t("已删除“{p0}”。", {
+  p0: deletedTitle
+}));
     await load();
     void refreshTopicIndex();
   }
@@ -171,34 +180,32 @@ export default function HomeModule() {
       <PageHeader
         actions={canEdit && (
           <div className="navigation-create-actions">
-          <Button onClick={openCreateCategory} variant="secondary">新建分类</Button>
+          <Button onClick={openCreateCategory} variant="secondary">{t("新建分类")}</Button>
           </div>
         )}
-        description="按问题保存外部资料与自己的阶段性理解。"
-        eyebrow="THINKSTACK / 思栈"
-        title="思考主题"
+        description={t("按问题保存外部资料与自己的阶段性理解。")}
+        eyebrow={t("THINKSTACK / 思栈")}
+        title={t("思考主题")}
       />
 
       <form className="topic-search" onSubmit={submitSearch} role="search">
-        <label htmlFor="topic-search-input">搜索思考记录</label>
+        <label htmlFor="topic-search-input">{t("搜索思考记录")}</label>
         <div className="topic-search__control">
           <Icon name="search" size={19} />
           <input
             id="topic-search-input"
             maxLength={200}
             onChange={(event) => setSearchValue(event.target.value)}
-            placeholder="输入 Topic 标题或原始问题关键词"
+            placeholder={t("输入 Topic 标题或原始问题关键词")}
             ref={searchInputRef}
             type="search"
             value={searchValue}
           />
           {searchValue ? (
-            <button className="topic-search__clear" onClick={clearSearch} type="button">
-              清除
-            </button>
+            <button className="topic-search__clear" onClick={clearSearch} type="button"> {t("清除")} </button>
           ) : null}
         </div>
-        <Button type="submit" variant="secondary">搜索</Button>
+        <Button type="submit" variant="secondary">{t("搜索")}</Button>
       </form>
 
       {status === 'loading' ? <TopicListSkeleton /> : null}
@@ -206,10 +213,10 @@ export default function HomeModule() {
       {status === 'error' ? (
         <StatePanel
           action={() => load()}
-          actionLabel="重新读取"
+          actionLabel={t("重新读取")}
           description={error}
           icon="refresh"
-          title="思考主题暂时不可用"
+          title={t("思考主题暂时不可用")}
           tone="error"
         />
       ) : null}
@@ -222,9 +229,11 @@ export default function HomeModule() {
               <div className="section-heading">
                 <div>
                   <p className="eyebrow">TOPICS</p>
-                  <h2 id="topic-list-heading">{query ? `“${query}”的搜索结果` : '最近更新'}</h2>
+                  <h2 id="topic-list-heading">{query ? t("“{p0}”的搜索结果", {
+  p0: query
+}) : t("最近更新")}</h2>
                 </div>
-                <span>{result.total} 项</span>
+                <span>{result.total} {t("项")}</span>
               </div>
               <div className="topic-list">
                 {result.items.map((topic) => (
@@ -235,33 +244,34 @@ export default function HomeModule() {
           ) : query ? (
             <StatePanel
               action={clearSearch}
-              actionLabel="清除搜索"
-              description={`标题和原始问题中没有找到“${query}”。你可以换一个关键词再试。`}
+              actionLabel={t("清除搜索")}
+              description={t("标题和原始问题中没有找到“{p0}”。你可以换一个关键词再试。", {
+  p0: query
+})}
               icon="search"
-              title="没有匹配的思考主题"
+              title={t("没有匹配的思考主题")}
             />
           ) : (
             <StatePanel
-              description="先记录一个真实问题，再逐步补充外部解答和自己的理解。"
+              description={t("先记录一个真实问题，再逐步补充外部解答和自己的理解。")}
               icon="book"
-              title="还没有思考主题"
+              title={t("还没有思考主题")}
             />
           )}
         </>
       ) : null}
 
       <ConfirmDialog
-        confirmLabel="永久删除主题"
+        confirmLabel={t("永久删除主题")}
         description={deleteTarget ? (
-          <p>
-            将删除原始问题、{deleteTarget.externalAnswerCount ?? 0} 个外部解答和
-            {deleteTarget.understandingCount ?? 0} 条理解记录。这个操作无法撤销。
-          </p>
+          <p>{t("将删除原始问题、{answers} 个外部解答和 {notes} 条理解记录。这个操作无法撤销。", { answers: deleteTarget.externalAnswerCount ?? 0, notes: deleteTarget.understandingCount ?? 0 })}</p>
         ) : null}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={confirmDelete}
         open={canEdit && Boolean(deleteTarget)}
-        title={deleteTarget ? `删除“${deleteTarget.title}”？` : '删除主题？'}
+        title={deleteTarget ? t("删除“{p0}”？", {
+  p0: deleteTarget.title
+}) : t("删除主题？")}
       />
     </div>
   );

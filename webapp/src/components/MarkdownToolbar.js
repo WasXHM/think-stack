@@ -1,13 +1,15 @@
+import { t } from '../i18n/index.js';
 import React from 'react';
 import Icon from './Icon.js';
 
-const groups = [
-  [['bold', '加粗'], ['italic', '斜体'], ['strike', '删除线']],
-  [['quote', '引用'], ['unorderedList', '无序列表'], ['orderedList', '有序列表'], ['taskList', '任务列表']],
-  [['inlineCode', '行内代码'], ['codeBlock', '代码块'], ['link', '插入链接'], ['divider', '分隔线']],
-];
+
 
 export default function MarkdownToolbar({ disabled, onFormat, onImage }) {
+const groups = [
+  [['bold', t("加粗")], ['italic', t("斜体")], ['strike', t("删除线")]],
+  [['quote', t("引用")], ['unorderedList', t("无序列表")], ['orderedList', t("有序列表")], ['taskList', t("任务列表")]],
+  [['inlineCode', t("行内代码")], ['codeBlock', t("代码块")], ['link', t("插入链接")], ['divider', t("分隔线")]],
+];
   function navigate(event) {
     if (event.target.tagName === 'SELECT' || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     const controls = Array.from(event.currentTarget.querySelectorAll('button:not(:disabled), select:not(:disabled)'));
@@ -19,18 +21,18 @@ export default function MarkdownToolbar({ disabled, onFormat, onImage }) {
   }
 
   return (
-    <div aria-label="Markdown 格式工具栏" className="markdown-toolbar" role="toolbar" onKeyDown={navigate}>
+    <div aria-label={t("Markdown 格式工具栏")} className="markdown-toolbar" role="toolbar" onKeyDown={navigate}>
       <select
-        aria-label="标题级别"
-        title="设置当前行或选中行的标题级别"
+        aria-label={t("标题级别")}
+        title={t("设置当前行或选中行的标题级别")}
         className="markdown-toolbar__heading"
         disabled={disabled}
         value=""
         onChange={(event) => onFormat(event.target.value)}
       >
-        <option value="" disabled>标题</option>
-        <option value="paragraph">正文</option>
-        {['一级', '二级', '三级', '四级', '五级', '六级'].map((label, index) => <option key={label} value={`h${index + 1}`}>H{index + 1} · {label}标题</option>)}
+        <option value="" disabled>{t("标题")}</option>
+        <option value="paragraph">{t("正文")}</option>
+        {[t("一级"), t("二级"), t("三级"), t("四级"), t("五级"), t("六级")].map((label, index) => <option key={label} value={`h${index + 1}`}>H{index + 1} · {label}{t("标题")}</option>)}
       </select>
       {groups.map((group, index) => (
         <div className="markdown-toolbar__group" key={index}>
@@ -43,7 +45,7 @@ export default function MarkdownToolbar({ disabled, onFormat, onImage }) {
         </div>
       ))}
       <div className="markdown-toolbar__group">
-        <button type="button" aria-label="插入图片" title="插入图片" disabled={disabled}
+        <button type="button" aria-label={t("插入图片")} title={t("插入图片")} disabled={disabled}
           onMouseDown={(event) => event.preventDefault()} onClick={onImage}>
           <Icon name="image" size={18} />
         </button>

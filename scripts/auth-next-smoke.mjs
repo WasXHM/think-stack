@@ -46,11 +46,28 @@ try {
   const cookie = login.headers.get('set-cookie').split(';')[0];
   assert.equal((await (await request('/auth/session', 'GET', null, cookie)).json()).data.user.username, 'admin');
   assert.equal((await request('/topics', 'POST', { title: 'Smoke test', question: 'Next.js authentication' }, cookie)).status, 201);
+  const chinese = await request('/topics?lang=zh', 'POST', { title: '中文测试', question: '中文内容' }, cookie);
+  assert.equal(chinese.status, 201);
+  const topic = (await chinese.json()).data;
+  const topicPath = `/topics/${topic.id}`;
+  assert.equal((await (await request(`${topicPath}?lang=en`)).json()).data.title, '中文测试');
+  assert.equal((await request(`${topicPath}?lang=en`, 'PATCH', { title: 'English test', question: 'English content' }, cookie)).status, 200);
+  assert.equal((await (await request(`${topicPath}?lang=zh`)).json()).data.title, '中文测试');
+  assert.equal((await (await request(`${topicPath}?lang=en`)).json()).data.title, 'English test');
+  const englishOnly = await request('/topics?lang=en', 'POST', { title: 'English-only topic', question: 'English-only content' }, cookie);
+  assert.equal(englishOnly.status, 201);
+  const englishId = (await englishOnly.json()).data.id;
+  const englishFile = JSON.parse(await readFile(join(temporary, 'resources/topics', englishId, 'topic.en.json'), 'utf8'));
+  assert.equal(englishFile.title, 'English-only topic');
   assert.equal((await request('/auth/logout', 'POST', null, cookie)).status, 200);
   assert.equal((await request('/topics', 'POST', {}, cookie)).status, 401);
   const users = await readFile(join(temporary, 'resources/auth/users.json'), 'utf8');
   assert.ok(!users.includes('Xhm775894'));
-  console.log('Next.js HTTP smoke passed: initialization, login, session, authorized write, logout and anonymous rejection.');
+  console.log('Next.js HTTP smoke passed: authentication, localized reads/writes, Chinese fallback and English-only creation.');
+  if (process.argv.includes('--serve')) {
+    console.log(`UI verification server: http://127.0.0.1:${port}/think-stack/`);
+    await new Promise((resolve) => { process.once('SIGTERM', resolve); process.once('SIGINT', resolve); });
+  }
 } catch (error) {
   console.error(output);
   throw error;
