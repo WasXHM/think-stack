@@ -1,3 +1,5 @@
+import SpeechProvider from '../../components/SpeechProvider.js';
+import SpeechButton from '../../components/SpeechButton.js';
 import { t } from '../../i18n/index.js';
 import { useCategories } from '../../components/CategoryContext.js';
 import TopicCategory from '../../components/TopicCategory.js';
@@ -46,7 +48,7 @@ function EntryActions({ label, onEdit, onDelete }) {
 function ExternalAnswerEntry({ entry, onEdit, onDelete }) {
   return (
     <article className="content-entry external-answer-entry">
-      <header className="content-entry__header">
+      <header className="content-entry__header content-entry__header--speech">
         <div>
           <span className="source-label">{entry.source || t("未注明来源")}</span>
           <div className="content-entry__time">
@@ -56,9 +58,12 @@ function ExternalAnswerEntry({ entry, onEdit, onDelete }) {
             ) : null}
           </div>
         </div>
+        <div className="entry-reading-actions">
+          <SpeechButton id={`answer:${entry.id}`} markdown={entry.content} label={t("外部解答")} />
         <EntryActions label={t("来自 {p0} 的外部解答", {
   p0: entry.source || t('未注明来源')
 })} onDelete={onDelete} onEdit={onEdit} />
+        </div>
       </header>
       <MarkdownContent>{entry.content}</MarkdownContent>
     </article>
@@ -72,7 +77,7 @@ function UnderstandingEntry({ entry, index, onEdit, onDelete }) {
         <span>{String(index + 1).padStart(2, '0')}</span>
       </div>
       <div className="understanding-entry__content">
-        <header className="content-entry__header">
+        <header className="content-entry__header content-entry__header--speech">
           <div>
             <p className="understanding-entry__label">{t("阶段理解")} {String(index + 1).padStart(2, '0')}</p>
             <div className="content-entry__time">
@@ -82,9 +87,12 @@ function UnderstandingEntry({ entry, index, onEdit, onDelete }) {
               ) : null}
             </div>
           </div>
+          <div className="entry-reading-actions">
+            <SpeechButton id={`understanding:${entry.id}`} markdown={entry.content} label={t("第 {p0} 条理解", { p0: index + 1 })} />
           <EntryActions label={t("第 {p0} 条理解", {
   p0: index + 1
 })} onDelete={onDelete} onEdit={onEdit} />
+          </div>
         </header>
         <MarkdownContent>{entry.content}</MarkdownContent>
       </div>
@@ -109,7 +117,7 @@ function SectionHeading({ eyebrow, title, count, actionLabel, onAction, id }) {
   );
 }
 
-export default function TopicDetailModule() {
+function TopicDetailContent() {
   const { categoryRevision } = useCategories();
   const { canEdit } = useAuth();
   const { topicId } = useParams();
@@ -286,6 +294,7 @@ export default function TopicDetailModule() {
                 <h2 id="question-heading">{t("原始问题")}</h2>
                 <span>{t("为什么会产生这个问题")}</span>
               </div>
+              <SpeechButton id={`question:${topic.id}`} markdown={topic.question} label={t("原始问题")} />
             </div>
             <MarkdownContent>{topic.question}</MarkdownContent>
           </section>
@@ -411,4 +420,9 @@ export default function TopicDetailModule() {
       />
     </div>
   );
+}
+
+export default function TopicDetailModule() {
+  const { topicId } = useParams();
+  return <SpeechProvider key={topicId}><TopicDetailContent /></SpeechProvider>;
 }

@@ -51,7 +51,6 @@ export default function TopicCategory({ topic, onSaved }) {
 
   return <div className="topic-category">
     <dl className="topic-overview__dates"><div><dt>{t("所属分类")}</dt><dd>{currentName}</dd></div></dl>
-    {canEdit ? <Button size="small" onClick={openDialog}>{t("更改分类")}</Button> : null}
     <Drawer open={canEdit && open} onClose={() => setOpen(false)} title={t("更改主题分类")} description={t("选择目标分类，主题及其全部内容将保留。")} busy={busy} presentation="workspace-dialog">
       <form onSubmit={submit}>
         <div className="field">
