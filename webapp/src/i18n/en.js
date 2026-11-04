@@ -33,6 +33,7 @@ export default {
   "在首页搜索": "Search on the home page",
   "登录": "Log in",
   "登录后可以新增、编辑和删除内容。": "Log in to create, edit and delete content.",
+  "登录后可以新建主题，并管理归属于你的内容。": "Log in to create topics and manage content you own.",
   "用户名": "Username",
   "密码": "Password",
   "取消": "Cancel",
@@ -40,6 +41,7 @@ export default {
   "正在确认登录状态…": "Checking your session…",
   "当前为只读模式": "Read-only mode",
   "你可以浏览所有文档，登录后即可新增和编辑内容。": "You can browse all documents. Log in to create and edit content.",
+  "你可以浏览公开主题，登录后即可新建并管理自己的主题。": "You can browse public topics. Log in to create and manage your own topics.",
   "正在处理…": "Working…",
   "默认分类": "Default",
   "分类读取失败": "Could not load categories",
@@ -323,5 +325,13 @@ export default {
   "链接。": "Link.",
   "以下为表格内容。": "The following is a table.",
   "已完成。": "Completed.",
-  "未完成。": "Not completed."
+  "未完成。": "Not completed.",
+  "公开": "Public",
+  "私有": "Private",
+  "可见范围": "Visibility",
+  "所有访客都可以查看此主题。": "Everyone can view this topic.",
+  "仅主题所属用户可以查看此主题。": "Only the topic owner can view this topic.",
+  "所属用户": "Owner",
+  "只有主题所属用户可以编辑此主题。": "Only the topic owner can edit this topic.",
+  "无法编辑此主题": "This topic cannot be edited"
 };

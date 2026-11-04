@@ -5,38 +5,38 @@ export function createTopicService(topicStore) {
     deleteCategory(id) { return topicStore.deleteCategory(id); },
     listCategories() { return topicStore.listCategories(); },
     createCategory(input) { return topicStore.createCategory(input); },
-    list(input) {
-      return topicStore.listTopics(input);
+    list(input, viewerUsername) {
+      return topicStore.listTopics({ ...input, viewerUsername });
     },
-    create(input) {
-      return topicStore.createTopic(input);
+    create(input, ownerUsername) {
+      return topicStore.createTopic(input, ownerUsername);
     },
-    get(topicId) {
-      return topicStore.getTopic(topicId);
+    get(topicId, viewerUsername) {
+      return topicStore.getTopic(topicId, { viewerUsername });
     },
-    update(topicId, changes) {
-      return topicStore.updateTopic(topicId, changes);
+    update(topicId, changes, actorUsername) {
+      return topicStore.updateTopic(topicId, changes, actorUsername);
     },
-    remove(topicId) {
-      return topicStore.deleteTopic(topicId);
+    remove(topicId, actorUsername) {
+      return topicStore.deleteTopic(topicId, actorUsername);
     },
-    createExternalAnswer(topicId, input) {
-      return topicStore.createExternalAnswer(topicId, input);
+    createExternalAnswer(topicId, input, actorUsername) {
+      return topicStore.createExternalAnswer(topicId, input, actorUsername);
     },
-    updateExternalAnswer(topicId, answerId, changes) {
-      return topicStore.updateExternalAnswer(topicId, answerId, changes);
+    updateExternalAnswer(topicId, answerId, changes, actorUsername) {
+      return topicStore.updateExternalAnswer(topicId, answerId, changes, actorUsername);
     },
-    removeExternalAnswer(topicId, answerId) {
-      return topicStore.deleteExternalAnswer(topicId, answerId);
+    removeExternalAnswer(topicId, answerId, actorUsername) {
+      return topicStore.deleteExternalAnswer(topicId, answerId, actorUsername);
     },
-    createUnderstanding(topicId, input) {
-      return topicStore.createUnderstanding(topicId, input);
+    createUnderstanding(topicId, input, actorUsername) {
+      return topicStore.createUnderstanding(topicId, input, actorUsername);
     },
-    updateUnderstanding(topicId, understandingId, changes) {
-      return topicStore.updateUnderstanding(topicId, understandingId, changes);
+    updateUnderstanding(topicId, understandingId, changes, actorUsername) {
+      return topicStore.updateUnderstanding(topicId, understandingId, changes, actorUsername);
     },
-    removeUnderstanding(topicId, understandingId) {
-      return topicStore.deleteUnderstanding(topicId, understandingId);
+    removeUnderstanding(topicId, understandingId, actorUsername) {
+      return topicStore.deleteUnderstanding(topicId, understandingId, actorUsername);
     },
   };
 }

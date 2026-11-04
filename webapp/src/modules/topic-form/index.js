@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { Button, ButtonLink } from '../../components/Button.js';
+import { useAuth } from '../../components/AuthContext.js';
 import { useCategories } from '../../components/CategoryContext.js';
 import DateTime from '../../components/DateTime.js';
 import Icon from '../../components/Icon.js';
@@ -30,12 +31,13 @@ export default function TopicFormModule({ mode }) {
   const editing = mode === 'edit';
   const [searchParams] = useSearchParams();
   const { categories, selectedCategoryId, selectCategory } = useCategories();
+  const { user } = useAuth();
   const requestedCategoryId = searchParams.get('categoryId') ?? selectedCategoryId;
   const { topicId } = useParams();
   const navigate = useNavigate();
   const { notify } = useToast();
   const [topic, setTopic] = useState(null);
-  const [values, setValues] = useState({ title: '', question: '', categoryId: requestedCategoryId });
+  const [values, setValues] = useState({ title: '', question: '', categoryId: requestedCategoryId, isPublic: true });
   const [errors, setErrors] = useState({});
   const [loadStatus, setLoadStatus] = useState(editing ? 'loading' : 'success');
   const [loadError, setLoadError] = useState('');
@@ -64,8 +66,18 @@ export default function TopicFormModule({ mode }) {
     setLoadError('');
     getTopic(topicId, { signal: controller.signal })
       .then((data) => {
+        if (data.ownerUsername !== user?.username) {
+          setLoadError(t("只有主题所属用户可以编辑此主题。"));
+          setLoadStatus('forbidden');
+          return;
+        }
         setTopic(data);
-        setValues({ title: data.title ?? '', question: data.question ?? '', categoryId: data.categoryId ?? 'default' });
+        setValues({
+          title: data.title ?? '',
+          question: data.question ?? '',
+          categoryId: data.categoryId ?? 'default',
+          isPublic: data.isPublic ?? true,
+        });
         setLoadStatus('success');
       })
       .catch((error) => {
@@ -75,7 +87,7 @@ export default function TopicFormModule({ mode }) {
         }
       });
     return () => controller.abort();
-  }, [editing, topicId]);
+  }, [editing, topicId, user?.username]);
 
   useEffect(() => {
     if (!editing) setValues((current) => ({ ...current, categoryId: requestedCategoryId }));
@@ -103,6 +115,7 @@ export default function TopicFormModule({ mode }) {
         categoryId: values.categoryId,
         title: values.title.trim(),
         question: values.question.trim(),
+        isPublic: values.isPublic,
       };
       const saved = editing
         ? await updateTopic(topicId, payload)
@@ -126,7 +139,7 @@ export default function TopicFormModule({ mode }) {
     return <div className="page"><DetailSkeleton /></div>;
   }
 
-  if (loadStatus === 'error' || loadStatus === 'not-found') {
+  if (loadStatus === 'error' || loadStatus === 'not-found' || loadStatus === 'forbidden') {
     return (
       <div className="page page--narrow">
         <StatePanel
@@ -138,8 +151,8 @@ export default function TopicFormModule({ mode }) {
               : loadError
           }
           icon="alert"
-          title={loadStatus === 'not-found' ? t("没有找到这个主题") : t("主题暂时无法读取")}
-          tone={loadStatus === 'not-found' ? 'neutral' : 'error'}
+          title={loadStatus === 'not-found' ? t("没有找到这个主题") : loadStatus === 'forbidden' ? t("无法编辑此主题") : t("主题暂时无法读取")}
+          tone={loadStatus === 'error' ? 'error' : 'neutral'}
         />
       </div>
     );
@@ -190,6 +203,24 @@ export default function TopicFormModule({ mode }) {
               {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
             </select>
             <p className="field__help">{t("未指定分类时归入默认分类。")}</p>
+          </div>
+          <div className="field topic-visibility-field">
+            <span className="topic-visibility-field__label">{t("可见范围")}</span>
+            <label className="visibility-switch" htmlFor="topic-is-public">
+              <span className="visibility-switch__copy">
+                <strong>{values.isPublic ? t("公开") : t("私有")}</strong>
+                <small>{values.isPublic ? t("所有访客都可以查看此主题。") : t("仅主题所属用户可以查看此主题。")}</small>
+              </span>
+              <input
+                checked={values.isPublic}
+                disabled={submitting}
+                id="topic-is-public"
+                onChange={(event) => updateValue('isPublic', event.target.checked)}
+                role="switch"
+                type="checkbox"
+              />
+              <span aria-hidden="true" className="visibility-switch__track"><span /></span>
+            </label>
           </div>
           <MarkdownEditor
             disabled={submitting}

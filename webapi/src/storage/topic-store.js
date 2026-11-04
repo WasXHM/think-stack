@@ -104,7 +104,7 @@ export class FileTopicStore {
     });
   }
 
-  async listTopics({ query = '' } = {}) {
+  async listTopics({ query = '', viewerUsername = null } = {}) {
     return this.#enqueueOperation(async () => {
       try {
         const entries = await readdir(this.topicsDir, { withFileTypes: true });
@@ -113,6 +113,9 @@ export class FileTopicStore {
           .map((entry) => entry.name);
         const settledTopics = await Promise.allSettled(topicIds.map(async (topicId) => {
           const topic = await this.#readTopicRecord(topicId);
+          if (!this.#isTopicVisible(topic, viewerUsername)) {
+            return null;
+          }
           const [externalAnswerCount, understandingCount] = await Promise.all([
             this.#countCollection(topicId, EXTERNAL_ANSWERS_DIRECTORY),
             this.#countCollection(topicId, UNDERSTANDINGS_DIRECTORY),
@@ -133,7 +136,7 @@ export class FileTopicStore {
             });
           }
           throw result.reason;
-        });
+        }).filter(Boolean);
         const normalizedQuery = query.toLocaleLowerCase();
         const matchingTopics = normalizedQuery
           ? topics.filter((topic) => (
@@ -240,23 +243,38 @@ export class FileTopicStore {
     });
   }
 
-  async getTopic(topicId) {
+  async getTopic(topicId, { viewerUsername = null } = {}) {
     const normalizedTopicId = validateUuid(topicId, 'topicId');
     return this.#enqueueOperation(async () => {
       try {
-        return await this.#readCompleteTopic(normalizedTopicId);
+        return await this.#readCompleteTopic(normalizedTopicId, viewerUsername);
       } catch (error) {
         throw this.#mapStorageError(error, `Unable to read topic ${normalizedTopicId}`);
       }
     });
   }
 
-  async createTopic({ title, question, categoryId = 'default' }) {
+  async createTopic({ title, question, categoryId = 'default', isPublic = true }, ownerUsername) {
     return this.#enqueueOperation(async () => {
+      if (typeof ownerUsername !== 'string' || ownerUsername.trim() === '') {
+        throw new AppError({
+          status: 401,
+          code: 'AUTH_REQUIRED',
+          message: '请先登录后再进行修改。',
+        });
+      }
       await this.#requireCategory(categoryId);
       const id = randomUUID();
       const timestamp = new Date().toISOString();
-      const topic = createTopicRecord({ id, title, question, categoryId, timestamp });
+      const topic = createTopicRecord({
+        id,
+        title,
+        question,
+        categoryId,
+        ownerUsername,
+        isPublic,
+        timestamp,
+      });
       const topicDirectory = this.#topicDirectory(id);
 
       try {
@@ -272,12 +290,13 @@ export class FileTopicStore {
     });
   }
 
-  async updateTopic(topicId, changes) {
+  async updateTopic(topicId, changes, actorUsername) {
     const normalizedTopicId = validateUuid(topicId, 'topicId');
 
     return this.#enqueueOperation(async () => {
       try {
         const current = await this.#readTopicRecord(normalizedTopicId);
+        this.#requireTopicOwner(current, actorUsername);
         if (Object.hasOwn(changes, 'categoryId')) await this.#requireCategory(changes.categoryId);
         const updated = updateTopicRecord(current, changes, nextTimestamp(current.updatedAt));
         await this.#writeTopicRecord(updated, Object.hasOwn(changes, 'title') || Object.hasOwn(changes, 'question'));
@@ -292,7 +311,7 @@ export class FileTopicStore {
     });
   }
 
-  async deleteTopic(topicId) {
+  async deleteTopic(topicId, actorUsername) {
     const normalizedTopicId = validateUuid(topicId, 'topicId');
 
     return this.#enqueueOperation(async () => {
@@ -303,7 +322,8 @@ export class FileTopicStore {
       );
 
       try {
-        await this.#readTopicRecord(normalizedTopicId);
+        const topic = await this.#readTopicRecord(normalizedTopicId);
+        this.#requireTopicOwner(topic, actorUsername);
         await rename(topicDirectory, tombstoneDirectory);
         await rm(tombstoneDirectory, { recursive: true, force: true }).catch(() => {});
       } catch (error) {
@@ -312,46 +332,48 @@ export class FileTopicStore {
     });
   }
 
-  async createExternalAnswer(topicId, input) {
+  async createExternalAnswer(topicId, input, actorUsername) {
     return this.#createChild(topicId, EXTERNAL_ANSWERS_DIRECTORY, {
       source: input.source,
       content: input.content,
-    });
+    }, actorUsername);
   }
 
-  async updateExternalAnswer(topicId, answerId, changes) {
+  async updateExternalAnswer(topicId, answerId, changes, actorUsername) {
     return this.#updateChild(
       topicId,
       answerId,
       EXTERNAL_ANSWERS_DIRECTORY,
       changes,
+      actorUsername,
     );
   }
 
-  async deleteExternalAnswer(topicId, answerId) {
-    return this.#deleteChild(topicId, answerId, EXTERNAL_ANSWERS_DIRECTORY);
+  async deleteExternalAnswer(topicId, answerId, actorUsername) {
+    return this.#deleteChild(topicId, answerId, EXTERNAL_ANSWERS_DIRECTORY, actorUsername);
   }
 
-  async createUnderstanding(topicId, input) {
+  async createUnderstanding(topicId, input, actorUsername) {
     return this.#createChild(topicId, UNDERSTANDINGS_DIRECTORY, {
       content: input.content,
-    });
+    }, actorUsername);
   }
 
-  async updateUnderstanding(topicId, understandingId, changes) {
+  async updateUnderstanding(topicId, understandingId, changes, actorUsername) {
     return this.#updateChild(
       topicId,
       understandingId,
       UNDERSTANDINGS_DIRECTORY,
       changes,
+      actorUsername,
     );
   }
 
-  async deleteUnderstanding(topicId, understandingId) {
-    return this.#deleteChild(topicId, understandingId, UNDERSTANDINGS_DIRECTORY);
+  async deleteUnderstanding(topicId, understandingId, actorUsername) {
+    return this.#deleteChild(topicId, understandingId, UNDERSTANDINGS_DIRECTORY, actorUsername);
   }
 
-  async #createChild(topicId, collection, values) {
+  async #createChild(topicId, collection, values, actorUsername) {
     const normalizedTopicId = validateUuid(topicId, 'topicId');
 
     return this.#enqueueOperation(async () => {
@@ -360,6 +382,7 @@ export class FileTopicStore {
 
       try {
         const topic = await this.#readTopicRecord(normalizedTopicId);
+        this.#requireTopicOwner(topic, actorUsername);
         const timestamp = nextTimestamp(topic.updatedAt);
         const child = collection === EXTERNAL_ANSWERS_DIRECTORY
           ? createExternalAnswerRecord({
@@ -391,7 +414,7 @@ export class FileTopicStore {
     });
   }
 
-  async #updateChild(topicId, childId, collection, changes) {
+  async #updateChild(topicId, childId, collection, changes, actorUsername) {
     const normalizedTopicId = validateUuid(topicId, 'topicId');
     const normalizedChildId = validateUuid(
       childId,
@@ -406,6 +429,7 @@ export class FileTopicStore {
           this.#readTopicRecord(normalizedTopicId),
           this.#readChildRecord(normalizedTopicId, collection, normalizedChildId),
         ]);
+        this.#requireTopicOwner(topic, actorUsername);
         const timestamp = nextTimestamp(topic.updatedAt, current.updatedAt);
         const updatedChild = collection === EXTERNAL_ANSWERS_DIRECTORY
           ? updateExternalAnswerRecord(current, changes, timestamp)
@@ -427,7 +451,7 @@ export class FileTopicStore {
     });
   }
 
-  async #deleteChild(topicId, childId, collection) {
+  async #deleteChild(topicId, childId, collection, actorUsername) {
     const normalizedTopicId = validateUuid(topicId, 'topicId');
     const normalizedChildId = validateUuid(
       childId,
@@ -446,6 +470,7 @@ export class FileTopicStore {
           this.#readTopicRecord(normalizedTopicId),
           this.#readChildRecord(normalizedTopicId, collection, normalizedChildId),
         ]);
+        this.#requireTopicOwner(topic, actorUsername);
         const updatedTopic = updateTopicRecord(topic, {}, nextTimestamp(topic.updatedAt));
 
         await rename(childFile, tombstoneFile);
@@ -470,8 +495,9 @@ export class FileTopicStore {
     return queued;
   }
 
-  async #readCompleteTopic(topicId) {
+  async #readCompleteTopic(topicId, viewerUsername) {
     const topic = await this.#readTopicRecord(topicId);
+    this.#requireTopicVisible(topic, viewerUsername);
     const [externalAnswers, understandings] = await Promise.all([
       this.#readCollection(topicId, EXTERNAL_ANSWERS_DIRECTORY),
       this.#readCollection(topicId, UNDERSTANDINGS_DIRECTORY),
@@ -486,6 +512,27 @@ export class FileTopicStore {
       externalAnswers.sort(sortByCreation),
       understandings.sort(sortByCreation),
     );
+  }
+
+  #isTopicVisible(topic, viewerUsername) {
+    return topic.isPublic || topic.ownerUsername === viewerUsername;
+  }
+
+  #requireTopicVisible(topic, viewerUsername) {
+    if (!this.#isTopicVisible(topic, viewerUsername)) {
+      throw topicNotFound(topic.id);
+    }
+  }
+
+  #requireTopicOwner(topic, actorUsername) {
+    this.#requireTopicVisible(topic, actorUsername);
+    if (topic.ownerUsername !== actorUsername) {
+      throw new AppError({
+        status: 403,
+        code: 'TOPIC_FORBIDDEN',
+        message: '只有主题所属用户可以编辑此主题。',
+      });
+    }
   }
 
   async #readTopicRecord(topicId) {

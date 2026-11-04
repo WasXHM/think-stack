@@ -57,6 +57,18 @@ function optionalString(body, field, maximumLength) {
   return requiredString(body[field], field, maximumLength);
 }
 
+function optionalBoolean(body, field, fallback) {
+  if (!Object.hasOwn(body, field)) {
+    return fallback;
+  }
+  if (typeof body[field] !== 'boolean') {
+    throw new ValidationError(`${field} must be a boolean`, [
+      { field, message: 'Must be a boolean' },
+    ]);
+  }
+  return body[field];
+}
+
 function requireAtLeastOneField(value) {
   if (Object.keys(value).length === 0) {
     throw new ValidationError('At least one editable field is required', [
@@ -97,16 +109,17 @@ export function filterListTopicsQuery(query = {}) {
 }
 
 export function filterCreateTopic(body) {
-  validateBody(body, ['title', 'question', 'categoryId']);
+  validateBody(body, ['title', 'question', 'categoryId', 'isPublic']);
   return {
     categoryId: normalizeCategory(body.categoryId),
     title: requiredString(body.title, 'title', MAX_TITLE_LENGTH),
     question: requiredString(body.question, 'question', MAX_MARKDOWN_LENGTH),
+    isPublic: optionalBoolean(body, 'isPublic', true),
   };
 }
 
 export function filterUpdateTopic(body) {
-  validateBody(body, ['title', 'question', 'categoryId']);
+  validateBody(body, ['title', 'question', 'categoryId', 'isPublic']);
   return requireAtLeastOneField({
     ...(Object.hasOwn(body, 'categoryId') ? { categoryId: normalizeCategory(body.categoryId) } : {}),
     ...(Object.hasOwn(body, 'title')
@@ -114,6 +127,9 @@ export function filterUpdateTopic(body) {
       : {}),
     ...(Object.hasOwn(body, 'question')
       ? { question: optionalString(body, 'question', MAX_MARKDOWN_LENGTH) }
+      : {}),
+    ...(Object.hasOwn(body, 'isPublic')
+      ? { isPublic: optionalBoolean(body, 'isPublic') }
       : {}),
   });
 }

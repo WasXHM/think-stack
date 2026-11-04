@@ -45,6 +45,17 @@ test('Next.js routes share authentication and protect every mutation', async (t)
   const detail = await import('../../app/api/topics/[topicId]/route.js');
   assert.equal((await detail.GET(request(`topics/${id}`), { params: { topicId: id } })).status, 200);
   assert.equal((await detail.PATCH(request(`topics/${id}`, 'PATCH', { title: 'Updated', question: 'Question' }, cookie), { params: { topicId: id } })).status, 200);
+  const privateCreated = await topics.POST(request('topics', 'POST', { title: 'Private', question: 'Secret', isPublic: false }, cookie));
+  assert.equal(privateCreated.status, 201);
+  const privateTopic = (await privateCreated.json()).data;
+  assert.equal(privateTopic.ownerUsername, 'admin');
+  assert.equal(privateTopic.isPublic, false);
+  const anonymousList = await topics.GET(request('topics'));
+  assert.equal((await anonymousList.json()).data.items.some((item) => item.id === privateTopic.id), false);
+  const ownerList = await topics.GET(request('topics', 'GET', null, cookie));
+  assert.equal((await ownerList.json()).data.items.some((item) => item.id === privateTopic.id), true);
+  assert.equal((await detail.GET(request(`topics/${privateTopic.id}`), { params: { topicId: privateTopic.id } })).status, 404);
+  assert.equal((await detail.GET(request(`topics/${privateTopic.id}`, 'GET', null, cookie), { params: { topicId: privateTopic.id } })).status, 200);
   await detail.PATCH(request(`topics/${id}`, 'PATCH', { categoryId }, cookie), { params: { topicId: id } });
   assert.equal((await categoryRoute.DELETE(request(`categories/${categoryId}`, 'DELETE', null, cookie), { params: { categoryId } })).status, 200);
   const moved = await detail.GET(request(`topics/${id}`), { params: { topicId: id } });

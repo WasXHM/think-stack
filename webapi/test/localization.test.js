@@ -11,16 +11,17 @@ test('localized topic and child content falls back without overwriting Chinese r
   t.after(() => rm(resourcesDir, { recursive: true, force: true }));
   const store = new FileTopicStore({ resourcesDir });
   const en = (operation) => withLocale('en', operation);
-  const topic = await store.createTopic({ title: '中文标题', question: '中文问题' });
-  const answer = await store.createExternalAnswer(topic.id, { source: '中文来源', content: '中文回答' });
-  const understanding = await store.createUnderstanding(topic.id, { content: '中文理解' });
+  const owner = 'admin';
+  const topic = await store.createTopic({ title: '中文标题', question: '中文问题' }, owner);
+  const answer = await store.createExternalAnswer(topic.id, { source: '中文来源', content: '中文回答' }, owner);
+  const understanding = await store.createUnderstanding(topic.id, { content: '中文理解' }, owner);
   const directory = join(resourcesDir, 'topics', topic.id);
   assert.equal((await en(() => store.getTopic(topic.id))).title, '中文标题');
   assert.ok(!(await readdir(directory)).includes('topic.en.json'));
   const category = await store.createCategory({ name: '分类' });
-  await en(() => store.updateTopic(topic.id, { categoryId: category.id }));
+  await en(() => store.updateTopic(topic.id, { categoryId: category.id }, owner));
   assert.ok(!(await readdir(directory)).includes('topic.en.json'), 'metadata changes do not create a translation');
-  await en(() => store.updateTopic(topic.id, { title: 'English title', question: 'English question' }));
+  await en(() => store.updateTopic(topic.id, { title: 'English title', question: 'English question' }, owner));
   const base = JSON.parse(await readFile(join(directory, 'topic.json'), 'utf8'));
   const translation = JSON.parse(await readFile(join(directory, 'topic.en.json'), 'utf8'));
   assert.equal(base.title, '中文标题');
@@ -31,20 +32,20 @@ test('localized topic and child content falls back without overwriting Chinese r
   assert.equal(englishView.title, 'English title');
   assert.equal(englishView.externalAnswers[0].content, '中文回答');
   assert.equal(englishView.understandings[0].content, '中文理解');
-  await en(() => store.updateExternalAnswer(topic.id, answer.id, { source: 'English source', content: 'English answer' }));
-  await en(() => store.updateUnderstanding(topic.id, understanding.id, { content: 'English understanding' }));
+  await en(() => store.updateExternalAnswer(topic.id, answer.id, { source: 'English source', content: 'English answer' }, owner));
+  await en(() => store.updateUnderstanding(topic.id, understanding.id, { content: 'English understanding' }, owner));
   const chineseView = await store.getTopic(topic.id);
   assert.equal(chineseView.externalAnswers[0].content, '中文回答');
   assert.equal(chineseView.understandings[0].content, '中文理解');
   assert.equal((await en(() => store.getTopic(topic.id))).externalAnswers[0].content, 'English answer');
-  await store.updateTopic(topic.id, { title: '新的中文标题' });
+  await store.updateTopic(topic.id, { title: '新的中文标题' }, owner);
   assert.equal((await en(() => store.getTopic(topic.id))).title, 'English title');
   assert.equal((await en(() => store.listTopics({ query: 'English' }))).total, 1);
   assert.equal((await store.listTopics({ query: 'English' })).total, 0);
   await en(() => store.deleteCategory(category.id));
   assert.equal((await en(() => store.getTopic(topic.id))).categoryId, 'default');
   assert.equal((await store.getTopic(topic.id)).title, '新的中文标题');
-  await store.deleteExternalAnswer(topic.id, answer.id);
+  await store.deleteExternalAnswer(topic.id, answer.id, owner);
   await assert.rejects(access(join(directory, 'external-answers', `${answer.id}.en.json`)));
   const restart = new FileTopicStore({ resourcesDir });
   assert.equal((await en(() => restart.getTopic(topic.id))).title, 'English title');
@@ -56,23 +57,24 @@ test('English-only creation stores content in English files and concurrent local
   t.after(() => rm(resourcesDir, { recursive: true, force: true }));
   const store = new FileTopicStore({ resourcesDir });
   const en = (operation) => withLocale('en', operation);
-  const topic = await en(() => store.createTopic({ title: 'English only', question: 'Question' }));
+  const owner = 'admin';
+  const topic = await en(() => store.createTopic({ title: 'English only', question: 'Question' }, owner));
   const directory = join(resourcesDir, 'topics', topic.id);
   const base = JSON.parse(await readFile(join(directory, 'topic.json'), 'utf8'));
   assert.equal(base.title, undefined);
   assert.equal((await store.getTopic(topic.id)).title, 'English only');
-  const child = await en(() => store.createUnderstanding(topic.id, { content: 'English note' }));
+  const child = await en(() => store.createUnderstanding(topic.id, { content: 'English note' }, owner));
   assert.equal(JSON.parse(await readFile(join(directory, 'understandings', `${child.id}.json`), 'utf8')).content, undefined);
   assert.equal((await store.getTopic(topic.id)).understandings[0].content, 'English note');
   await Promise.all([
-    withLocale('zh', () => store.updateTopic(topic.id, { title: '中文版本', question: '中文问题' })),
-    en(() => store.updateTopic(topic.id, { title: 'English version', question: 'English question' })),
+    withLocale('zh', () => store.updateTopic(topic.id, { title: '中文版本', question: '中文问题' }, owner)),
+    en(() => store.updateTopic(topic.id, { title: 'English version', question: 'English question' }, owner)),
   ]);
   const views = await Promise.all([store.getTopic(topic.id), en(() => store.getTopic(topic.id))]);
   assert.equal(views[0].title, '中文版本');
   assert.equal(views[1].title, 'English version');
   assert.equal((await en(() => store.listTopics())).items[0].understandingCount, 1);
-  await store.deleteTopic(topic.id);
+  await store.deleteTopic(topic.id, owner);
   assert.equal((await en(() => store.listTopics())).total, 0);
 });
 

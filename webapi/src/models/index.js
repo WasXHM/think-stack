@@ -1,4 +1,5 @@
 export {
+  LEGACY_TOPIC_OWNER,
   createTopicRecord,
   updateTopicRecord,
   deserializeTopic,

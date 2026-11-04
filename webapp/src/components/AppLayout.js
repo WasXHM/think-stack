@@ -182,7 +182,7 @@ function MobileNavigation({ open, onClose, onRetryTopics, topicIndex }) {
   );
 }
 
-function useTopicIndex(pathname, categoryRevision) {
+function useTopicIndex(pathname, categoryRevision, username) {
   const [topicIndex, setTopicIndex] = useState({
     items: [],
     status: 'loading',
@@ -228,7 +228,7 @@ function useTopicIndex(pathname, categoryRevision) {
   useEffect(() => {
     void refreshTopicIndex();
     return () => activeRequestRef.current?.abort();
-  }, [pathname, categoryRevision, refreshTopicIndex]);
+  }, [pathname, categoryRevision, refreshTopicIndex, username]);
 
   return { refreshTopicIndex, topicIndex };
 }
@@ -279,8 +279,9 @@ function AppLayoutContent() {
   const [navigationOpen, setNavigationOpen] = useState(false);
   const [navigationCollapsed, setNavigationCollapsed] = useState(false);
   const location = useLocation();
+  const { user } = useAuth();
   const { categoryRevision } = useCategories();
-  const { refreshTopicIndex, topicIndex } = useTopicIndex(location.pathname, categoryRevision);
+  const { refreshTopicIndex, topicIndex } = useTopicIndex(location.pathname, categoryRevision, user?.username);
   const closeNavigation = useCallback(() => setNavigationOpen(false), []);
   const retryTopics = useCallback(
     () => refreshTopicIndex({ showLoading: true }),

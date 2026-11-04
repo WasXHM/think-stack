@@ -25,8 +25,7 @@ import {
 } from '../../services/topics.js';
 import { formatDate, getErrorMessage } from '../../utils/format.js';
 
-function EntryActions({ label, onEdit, onDelete }) {
-  const { canEdit } = useAuth();
+function EntryActions({ canEdit, label, onEdit, onDelete }) {
   if (!canEdit) return null;
   return (
     <div className="entry-actions">
@@ -45,7 +44,7 @@ function EntryActions({ label, onEdit, onDelete }) {
   );
 }
 
-function ExternalAnswerEntry({ entry, onEdit, onDelete }) {
+function ExternalAnswerEntry({ canEdit, entry, onEdit, onDelete }) {
   return (
     <article className="content-entry external-answer-entry">
       <header className="content-entry__header content-entry__header--speech">
@@ -60,7 +59,7 @@ function ExternalAnswerEntry({ entry, onEdit, onDelete }) {
         </div>
         <div className="entry-reading-actions">
           <SpeechButton id={`answer:${entry.id}`} markdown={entry.content} label={t("外部解答")} />
-        <EntryActions label={t("来自 {p0} 的外部解答", {
+        <EntryActions canEdit={canEdit} label={t("来自 {p0} 的外部解答", {
   p0: entry.source || t('未注明来源')
 })} onDelete={onDelete} onEdit={onEdit} />
         </div>
@@ -70,7 +69,7 @@ function ExternalAnswerEntry({ entry, onEdit, onDelete }) {
   );
 }
 
-function UnderstandingEntry({ entry, index, onEdit, onDelete }) {
+function UnderstandingEntry({ canEdit, entry, index, onEdit, onDelete }) {
   return (
     <article className="understanding-entry">
       <div className="understanding-entry__marker" aria-hidden="true">
@@ -89,7 +88,7 @@ function UnderstandingEntry({ entry, index, onEdit, onDelete }) {
           </div>
           <div className="entry-reading-actions">
             <SpeechButton id={`understanding:${entry.id}`} markdown={entry.content} label={t("第 {p0} 条理解", { p0: index + 1 })} />
-          <EntryActions label={t("第 {p0} 条理解", {
+          <EntryActions canEdit={canEdit} label={t("第 {p0} 条理解", {
   p0: index + 1
 })} onDelete={onDelete} onEdit={onEdit} />
           </div>
@@ -100,8 +99,7 @@ function UnderstandingEntry({ entry, index, onEdit, onDelete }) {
   );
 }
 
-function SectionHeading({ eyebrow, title, count, actionLabel, onAction, id }) {
-  const { canEdit } = useAuth();
+function SectionHeading({ canEdit, eyebrow, title, count, actionLabel, onAction, id }) {
   return (
     <div className="section-heading section-heading--detail">
       <div>
@@ -119,7 +117,7 @@ function SectionHeading({ eyebrow, title, count, actionLabel, onAction, id }) {
 
 function TopicDetailContent() {
   const { categoryRevision } = useCategories();
-  const { canEdit } = useAuth();
+  const { user } = useAuth();
   const { topicId } = useParams();
   const navigate = useNavigate();
   const { refreshTopicIndex } = useOutletContext();
@@ -129,6 +127,7 @@ function TopicDetailContent() {
   const [error, setError] = useState('');
   const [editor, setEditor] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const canEdit = topic?.ownerUsername === user?.username;
 
   usePageTitle(topic?.title ?? t("主题详情"));
 
@@ -146,7 +145,7 @@ function TopicDetailContent() {
           setStatus(loadError.status === 404 ? 'not-found' : 'error');
         }
       });
-  }, [topicId]);
+  }, [topicId, user?.username]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -302,6 +301,7 @@ function TopicDetailContent() {
           <section aria-labelledby="answers-heading" className="detail-section" id="external-answers" tabIndex="-1">
             <SectionHeading
               actionLabel={t("添加外部解答")}
+              canEdit={canEdit}
               count={externalAnswers.length}
               eyebrow="EXTERNAL ANSWERS"
               id="answers-heading"
@@ -312,6 +312,7 @@ function TopicDetailContent() {
               <div className="content-entry-list">
                 {externalAnswers.map((entry) => (
                   <ExternalAnswerEntry
+                    canEdit={canEdit}
                     entry={entry}
                     key={entry.id}
                     onDelete={() => setDeleteTarget({ kind: 'answer', entry })}
@@ -334,6 +335,7 @@ function TopicDetailContent() {
           <section aria-labelledby="understandings-heading" className="detail-section" id="understandings" tabIndex="-1">
             <SectionHeading
               actionLabel={t("添加我的理解")}
+              canEdit={canEdit}
               count={understandings.length}
               eyebrow="MY UNDERSTANDINGS"
               id="understandings-heading"
@@ -345,6 +347,7 @@ function TopicDetailContent() {
               <div className="understanding-timeline">
                 {understandings.map((entry, index) => (
                   <UnderstandingEntry
+                    canEdit={canEdit}
                     entry={entry}
                     index={index}
                     key={entry.id}
@@ -371,6 +374,10 @@ function TopicDetailContent() {
             <p className="eyebrow">OVERVIEW</p>
             <h2>{t("本题概览")}</h2>
             <TopicCategory key={topic.id} topic={topic} onSaved={setTopic} />
+            <dl className="topic-overview__dates topic-overview__identity">
+              <div><dt>{t("所属用户")}</dt><dd>{topic.ownerUsername}</dd></div>
+              <div><dt>{t("可见范围")}</dt><dd><span className="visibility-badge">{topic.isPublic ? t("公开") : t("私有")}</span></dd></div>
+            </dl>
             <dl className="topic-overview__counts">
               <div><dt>{t("外部解答")}</dt><dd>{externalAnswers.length}</dd></div>
               <div><dt>{t("我的理解")}</dt><dd>{understandings.length}</dd></div>

@@ -1,18 +1,19 @@
 import { filterUpdateTopic } from '../../../../webapi/src/modules/topics/filter.js';
 export const dynamic = 'force-dynamic';
-import { withWriteAuth } from '../../../../lib/auth.js';
+import { withOptionalAuth, withWriteAuth } from '../../../../lib/auth.js';
 import { getTopicStore } from '../../../../lib/topic-store.js';
 
-export async function GET(request, { params }) {
-  return Response.json({ data: await getTopicStore(request).getTopic(params.topicId) });
+async function handleGET(request, { params }, user) {
+  return Response.json({ data: await getTopicStore(request).getTopic(params.topicId, { viewerUsername: user?.username }) });
+}
+export const GET = withOptionalAuth(handleGET);
+
+async function handlePATCH(request, { params }, user) {
+  return Response.json({ data: await getTopicStore(request).updateTopic(params.topicId, filterUpdateTopic(await request.json()), user.username) });
 }
 
-async function handlePATCH(request, { params }) {
-  return Response.json({ data: await getTopicStore(request).updateTopic(params.topicId, filterUpdateTopic(await request.json())) });
-}
-
-async function handleDELETE(request, { params }) {
-  await getTopicStore(request).deleteTopic(params.topicId);
+async function handleDELETE(request, { params }, user) {
+  await getTopicStore(request).deleteTopic(params.topicId, user.username);
   return new Response(null, { status: 204 });
 }
 

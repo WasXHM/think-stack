@@ -43,7 +43,8 @@ function CountStrip({ topics, total, filtered }) {
 }
 
 function TopicRow({ topic, onDelete }) {
-  const { canEdit } = useAuth();
+  const { user } = useAuth();
+  const canEdit = topic.ownerUsername === user?.username;
   const answerCount = Number(topic.externalAnswerCount ?? topic.externalAnswers?.length ?? 0);
   const understandingCount = Number(topic.understandingCount ?? topic.understandings?.length ?? 0);
   const summary = topic.questionSummary || summarizeText(topic.question);
@@ -56,6 +57,7 @@ function TopicRow({ topic, onDelete }) {
         </Link>
         <p className="topic-row__summary">{summary || t("尚未记录原始问题摘要。")}</p>
         <div className="topic-row__meta">
+          {!topic.isPublic ? <span className="visibility-badge">{t("私有")}</span> : null}
           <span>{answerCount} {t("个外部解答")}</span>
           <span aria-hidden="true">·</span>
           <span>{understandingCount} {t("条我的理解")}</span>
@@ -101,7 +103,7 @@ function TopicRow({ topic, onDelete }) {
 }
 
 export default function HomeModule() {
-  const { canEdit } = useAuth();
+  const { canEdit, user } = useAuth();
   usePageTitle(t("思考主题"));
   const { notify } = useToast();
   const { refreshTopicIndex } = useOutletContext();
@@ -144,7 +146,7 @@ export default function HomeModule() {
           setStatus('error');
         }
       });
-  }, [query]);
+  }, [query, user?.username]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -268,7 +270,7 @@ export default function HomeModule() {
         ) : null}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={confirmDelete}
-        open={canEdit && Boolean(deleteTarget)}
+        open={deleteTarget?.ownerUsername === user?.username}
         title={deleteTarget ? t("删除“{p0}”？", {
   p0: deleteTarget.title
 }) : t("删除主题？")}

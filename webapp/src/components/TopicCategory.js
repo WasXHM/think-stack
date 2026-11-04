@@ -10,7 +10,8 @@ import { updateTopic } from '../services/topics.js';
 import { getErrorMessage } from '../utils/format.js';
 
 export default function TopicCategory({ topic, onSaved }) {
-  const { canEdit } = useAuth();
+  const { user } = useAuth();
+  const canEdit = topic.ownerUsername === user?.username;
   const { categories, selectCategory, loadError, refresh } = useCategories();
   const { refreshTopicIndex } = useOutletContext();
   const { notify } = useToast();
