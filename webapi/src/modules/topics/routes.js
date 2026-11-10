@@ -6,9 +6,11 @@ import {
   createUnderstanding,
   deleteExternalAnswer,
   deleteTopic,
+  deleteTopicDraft,
   deleteUnderstanding,
   getTopic,
   listTopics,
+  saveTopicDraft,
   updateExternalAnswer,
   updateTopic,
   updateUnderstanding,
@@ -21,6 +23,8 @@ router.post('/', createTopic);
 router.get('/:topicId', getTopic);
 router.patch('/:topicId', updateTopic);
 router.delete('/:topicId', deleteTopic);
+router.put('/:topicId/draft', saveTopicDraft);
+router.delete('/:topicId/draft', deleteTopicDraft);
 
 router.post('/:topicId/external-answers', createExternalAnswer);
 router.patch('/:topicId/external-answers/:answerId', updateExternalAnswer);

@@ -69,6 +69,30 @@ function optionalBoolean(body, field, fallback) {
   return body[field];
 }
 
+function draftString(value, field, maximumLength) {
+  if (typeof value !== 'string') {
+    throw new ValidationError(`${field} must be a string`, [
+      { field, message: 'Must be a string' },
+    ]);
+  }
+  if (value.length > maximumLength) {
+    throw new ValidationError(`${field} is too long`, [
+      { field, message: `Must contain at most ${maximumLength} characters` },
+    ]);
+  }
+  return value;
+}
+
+function draftTimestamp(value, field) {
+  const parsed = typeof value === 'string' ? Date.parse(value) : Number.NaN;
+  if (!Number.isFinite(parsed)) {
+    throw new ValidationError(`${field} must be a timestamp`, [
+      { field, message: 'Must be an ISO timestamp' },
+    ]);
+  }
+  return new Date(parsed).toISOString();
+}
+
 function requireAtLeastOneField(value) {
   if (Object.keys(value).length === 0) {
     throw new ValidationError('At least one editable field is required', [
@@ -132,6 +156,71 @@ export function filterUpdateTopic(body) {
       ? { isPublic: optionalBoolean(body, 'isPublic') }
       : {}),
   });
+}
+
+export function filterSaveTopicDraft(body) {
+  validateBody(body, ['targetType', 'targetId', 'operation', 'values', 'baseUpdatedAt']);
+  if (!['topic', 'external-answer', 'understanding'].includes(body.targetType)) {
+    throw new ValidationError('targetType is invalid', [
+      { field: 'targetType', message: 'Must identify a supported draft target' },
+    ]);
+  }
+  if (!['create', 'update'].includes(body.operation)) {
+    throw new ValidationError('operation is invalid', [
+      { field: 'operation', message: 'Must be create or update' },
+    ]);
+  }
+  if (!isPlainObject(body.values)) {
+    throw new ValidationError('values must be an object', [
+      { field: 'values', message: 'Must be a JSON object' },
+    ]);
+  }
+
+  let targetId = body.targetId ?? null;
+  let values;
+  if (body.targetType === 'topic') {
+    if (body.operation !== 'update' || targetId !== null) {
+      throw new ValidationError('Topic drafts must update the topic itself');
+    }
+    validateBody(body.values, ['title', 'question', 'categoryId', 'isPublic']);
+    if (typeof body.values.isPublic !== 'boolean') {
+      throw new ValidationError('isPublic must be a boolean', [
+        { field: 'values.isPublic', message: 'Must be a boolean' },
+      ]);
+    }
+    values = {
+      title: draftString(body.values.title, 'values.title', MAX_TITLE_LENGTH),
+      question: draftString(body.values.question, 'values.question', MAX_MARKDOWN_LENGTH),
+      categoryId: normalizeCategory(body.values.categoryId),
+      isPublic: body.values.isPublic,
+    };
+  } else {
+    if (body.operation === 'create') {
+      if (targetId !== null) throw new ValidationError('New-entry drafts must not have a targetId');
+    } else {
+      targetId = validateUuid(targetId, 'targetId');
+    }
+    if (body.targetType === 'external-answer') {
+      validateBody(body.values, ['source', 'content']);
+      values = {
+        source: draftString(body.values.source, 'values.source', MAX_SOURCE_LENGTH),
+        content: draftString(body.values.content, 'values.content', MAX_MARKDOWN_LENGTH),
+      };
+    } else {
+      validateBody(body.values, ['content']);
+      values = {
+        content: draftString(body.values.content, 'values.content', MAX_MARKDOWN_LENGTH),
+      };
+    }
+  }
+
+  return {
+    targetType: body.targetType,
+    targetId,
+    operation: body.operation,
+    values,
+    baseUpdatedAt: draftTimestamp(body.baseUpdatedAt, 'baseUpdatedAt'),
+  };
 }
 
 export function filterCreateExternalAnswer(body) {

@@ -1,13 +1,14 @@
 import SpeechProvider from '../../components/SpeechProvider.js';
 import SpeechButton from '../../components/SpeechButton.js';
 import { t } from '../../i18n/index.js';
+import { useLanguage } from '../../i18n/LanguageProvider.js';
 import { useCategories } from '../../components/CategoryContext.js';
 import TopicCategory from '../../components/TopicCategory.js';
 import { useAuth } from '../../components/AuthContext.js';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useOutletContext, useParams } from 'react-router-dom';
 
-import { Button, ButtonLink, IconButton } from '../../components/Button.js';
+import { Button, IconButton } from '../../components/Button.js';
 import ConfirmDialog from '../../components/ConfirmDialog.js';
 import DateTime from '../../components/DateTime.js';
 import EntryDrawer from '../../components/EntryDrawer.js';
@@ -24,6 +25,7 @@ import {
   getTopic,
 } from '../../services/topics.js';
 import { formatDate, getErrorMessage } from '../../utils/format.js';
+import { draftMatches, isCurrentTopicDraft, isNewerTopicDraft } from '../../utils/topic-drafts.js';
 
 function EntryActions({ canEdit, label, onEdit, onDelete }) {
   if (!canEdit) return null;
@@ -118,6 +120,7 @@ function SectionHeading({ canEdit, eyebrow, title, count, actionLabel, onAction,
 function TopicDetailContent() {
   const { categoryRevision } = useCategories();
   const { user } = useAuth();
+  const { locale, changeLanguage } = useLanguage();
   const { topicId } = useParams();
   const navigate = useNavigate();
   const { refreshTopicIndex } = useOutletContext();
@@ -128,6 +131,7 @@ function TopicDetailContent() {
   const [editor, setEditor] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const canEdit = topic?.ownerUsername === user?.username;
+  const newerDraft = canEdit && isNewerTopicDraft(topic, topic?.draft) ? topic.draft : null;
 
   usePageTitle(topic?.title ?? t("主题详情"));
 
@@ -137,7 +141,14 @@ function TopicDetailContent() {
     return getTopic(topicId, { signal })
       .then((data) => {
         setTopic(data);
+        setEditor((current) => {
+          if (!current?.entry) return current;
+          const collection = current.kind === 'answer' ? data.externalAnswers : data.understandings;
+          const localizedEntry = collection?.find((item) => item.id === current.entry.id);
+          return localizedEntry ? { ...current, entry: localizedEntry } : null;
+        });
         setStatus('success');
+        return data;
       })
       .catch((loadError) => {
         if (loadError.name !== 'AbortError') {
@@ -145,7 +156,7 @@ function TopicDetailContent() {
           setStatus(loadError.status === 404 ? 'not-found' : 'error');
         }
       });
-  }, [topicId, user?.username]);
+  }, [locale, topicId, user?.username]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -173,7 +184,11 @@ function TopicDetailContent() {
       const next = editing
         ? existing.map((item) => (item.id === saved.id ? saved : item))
         : [...existing, saved];
-      return { ...current, [collection]: next, updatedAt: saved.updatedAt ?? current.updatedAt };
+      return {
+        ...current,
+        [collection]: next,
+        updatedAt: saved.updatedAt ?? current.updatedAt,
+      };
     });
     setEditor(null);
     notify(
@@ -249,6 +264,50 @@ function TopicDetailContent() {
     section?.scrollIntoView({ block: 'start' });
   }
 
+  function openTopicEditor() {
+    if (draftMatches(topic?.draft, {
+      targetType: 'topic',
+      targetId: null,
+      operation: 'update',
+    }) && isCurrentTopicDraft(topic, topic.draft) && topic.draft.locale !== locale) {
+      changeLanguage(topic.draft.locale);
+    }
+    navigate(`/topics/${topicId}/edit`);
+  }
+
+  function openEntryEditor(kind, entry = null) {
+    const targetType = kind === 'answer' ? 'external-answer' : 'understanding';
+    const matchingDraft = draftMatches(topic?.draft, {
+      targetType,
+      targetId: entry?.id ?? null,
+      operation: entry ? 'update' : 'create',
+    }) && isCurrentTopicDraft(topic, topic.draft);
+    if (matchingDraft && topic.draft.locale !== locale) {
+      changeLanguage(topic.draft.locale);
+    }
+    setEditor({ kind, entry });
+  }
+
+  function continueDraft() {
+    if (!newerDraft) return;
+    if (newerDraft.targetType === 'topic') {
+      openTopicEditor();
+      return;
+    }
+    const kind = newerDraft.targetType === 'external-answer' ? 'answer' : 'understanding';
+    const collection = kind === 'answer' ? externalAnswers : understandings;
+    const entry = newerDraft.operation === 'update'
+      ? collection.find((item) => item.id === newerDraft.targetId)
+      : null;
+    openEntryEditor(kind, entry);
+  }
+
+  function draftTargetLabel(draft) {
+    if (draft.targetType === 'topic') return t("主题内容草稿");
+    if (draft.targetType === 'external-answer') return t("外部解答草稿");
+    return t("理解记录草稿");
+  }
+
   if (status === 'loading') {
     return <div className="page"><DetailSkeleton /></div>;
   }
@@ -273,8 +332,8 @@ function TopicDetailContent() {
     <div className="page topic-detail-page">
       <PageHeader
         actions={canEdit && (
-          <ButtonLink to={`/topics/${topicId}/edit`} variant="secondary">
-            <Icon name="edit" size={17} /> {t("编辑主题")} </ButtonLink>
+          <Button onClick={openTopicEditor} variant="secondary">
+            <Icon name="edit" size={17} /> {t("编辑主题")} </Button>
         )}
         description={t("创建于 {p0} · 最近更新 {p1}", {
   p0: formatDate(topic.createdAt),
@@ -283,6 +342,20 @@ function TopicDetailContent() {
         eyebrow={t("TOPIC / 思考主题")}
         title={topic.title}
       />
+
+      {newerDraft ? (
+        <section className="draft-notice" aria-labelledby="draft-notice-title">
+          <Icon name="edit" size={20} />
+          <div>
+            <strong id="draft-notice-title">{t("有未提交的草稿")}</strong>
+            <p>{t("{target}更新于 {time}，当前仍显示正式内容。", {
+              target: draftTargetLabel(newerDraft),
+              time: formatDate(newerDraft.updatedAt, { withTime: true }),
+            })}</p>
+          </div>
+          <Button onClick={continueDraft} size="small" variant="secondary">{t("继续编辑草稿")}</Button>
+        </section>
+      ) : null}
 
       <div className="topic-detail-layout">
         <div className="topic-detail-main">
@@ -305,7 +378,7 @@ function TopicDetailContent() {
               count={externalAnswers.length}
               eyebrow="EXTERNAL ANSWERS"
               id="answers-heading"
-              onAction={() => setEditor({ kind: 'answer', entry: null })}
+              onAction={() => openEntryEditor('answer')}
               title={t("外部解答")}
             />
             {externalAnswers.length ? (
@@ -316,13 +389,13 @@ function TopicDetailContent() {
                     entry={entry}
                     key={entry.id}
                     onDelete={() => setDeleteTarget({ kind: 'answer', entry })}
-                    onEdit={() => setEditor({ kind: 'answer', entry })}
+                    onEdit={() => openEntryEditor('answer', entry)}
                   />
                 ))}
               </div>
             ) : (
               <StatePanel
-                action={canEdit ? () => setEditor({ kind: 'answer', entry: null }) : undefined}
+                action={canEdit ? () => openEntryEditor('answer') : undefined}
                 actionLabel={t("添加第一条解答")}
                 compact
                 description={t("把来自模型、文章或技术社区的回答作为独立记录保存在这里。")}
@@ -339,7 +412,7 @@ function TopicDetailContent() {
               count={understandings.length}
               eyebrow="MY UNDERSTANDINGS"
               id="understandings-heading"
-              onAction={() => setEditor({ kind: 'understanding', entry: null })}
+              onAction={() => openEntryEditor('understanding')}
               title={t("我的理解")}
             />
             <p className="section-introduction">{t("新增理解会追加到时间线，不会覆盖过去的记录。")}</p>
@@ -352,13 +425,13 @@ function TopicDetailContent() {
                     index={index}
                     key={entry.id}
                     onDelete={() => setDeleteTarget({ kind: 'understanding', entry })}
-                    onEdit={() => setEditor({ kind: 'understanding', entry })}
+                    onEdit={() => openEntryEditor('understanding', entry)}
                   />
                 ))}
               </div>
             ) : (
               <StatePanel
-                action={canEdit ? () => setEditor({ kind: 'understanding', entry: null }) : undefined}
+                action={canEdit ? () => openEntryEditor('understanding') : undefined}
                 actionLabel={t("记录第一版理解")}
                 compact
                 description={t("当你形成阶段性判断后，把依据、不确定处和当前结论记录下来。")}
@@ -393,9 +466,9 @@ function TopicDetailContent() {
             <button onClick={() => moveToSection('understandings')} type="button"><span>03</span>{t("我的理解")}</button>
           </nav>
           {canEdit && <><div className="topic-quick-actions">
-            <Button onClick={() => setEditor({ kind: 'understanding', entry: null })} variant="primary">
+            <Button onClick={() => openEntryEditor('understanding')} variant="primary">
               <Icon name="plus" size={17} />{t("添加我的理解")} </Button>
-            <Button onClick={() => setEditor({ kind: 'answer', entry: null })} variant="secondary">
+            <Button onClick={() => openEntryEditor('answer')} variant="secondary">
               <Icon name="plus" size={17} />{t("添加外部解答")} </Button>
           </div>
           <button
@@ -413,7 +486,10 @@ function TopicDetailContent() {
         onClose={() => setEditor(null)}
         onSaved={handleSaved}
         open={canEdit && Boolean(editor)}
+        draft={topic.draft}
+        onDraftChange={(draft) => setTopic((current) => ({ ...current, draft }))}
         topicId={topicId}
+        topicUpdatedAt={topic.updatedAt}
       />
       <ConfirmDialog
         confirmLabel={deleteTarget?.kind === 'topic' ? t("永久删除主题") : t("永久删除记录")}

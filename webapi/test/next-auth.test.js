@@ -9,14 +9,14 @@ test('Next.js routes share authentication and protect every mutation', async (t)
   process.env.RESOURCES_DIR = dir;
   t.after(() => rm(dir, { recursive: true, force: true }));
   const routes = [
-    'topics', 'categories', 'categories/[categoryId]', 'images', 'topics/[topicId]',
+    'topics', 'categories', 'categories/[categoryId]', 'images', 'topics/[topicId]', 'topics/[topicId]/draft',
     'topics/[topicId]/external-answers', 'topics/[topicId]/external-answers/[answerId]',
     'topics/[topicId]/understandings', 'topics/[topicId]/understandings/[understandingId]',
   ];
   const request = (path, method = 'GET', body, cookie = '', marker = true) => new Request(`http://localhost/think-stack/api/${path}`, { method, headers: { cookie, 'content-type': 'application/json', ...(marker ? { 'x-thinkstack-request': '1' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
   for (const path of routes) {
     const route = await import(`../../app/api/${path}/route.js`);
-    for (const method of ['POST', 'PATCH', 'DELETE']) {
+    for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
       if (route[method]) assert.equal((await route[method](request(path, method, {}), { params: {} })).status, 401, `${method} ${path}`);
     }
   }
@@ -44,6 +44,16 @@ test('Next.js routes share authentication and protect every mutation', async (t)
   const id = (await created.json()).data.id;
   const detail = await import('../../app/api/topics/[topicId]/route.js');
   assert.equal((await detail.GET(request(`topics/${id}`), { params: { topicId: id } })).status, 200);
+  const drafts = await import('../../app/api/topics/[topicId]/draft/route.js');
+  const initialDetail = await detail.GET(request(`topics/${id}`, 'GET', null, cookie), { params: { topicId: id } });
+  const initialTopic = (await initialDetail.json()).data;
+  const savedDraft = await drafts.PUT(request(`topics/${id}/draft`, 'PUT', {
+    targetType: 'topic', targetId: null, operation: 'update', baseUpdatedAt: initialTopic.updatedAt,
+    values: { title: 'Draft title', question: 'Draft question', categoryId: 'default', isPublic: true },
+  }, cookie), { params: { topicId: id } });
+  assert.equal(savedDraft.status, 200);
+  assert.equal((await savedDraft.json()).data.values.title, 'Draft title');
+  assert.equal((await drafts.DELETE(request(`topics/${id}/draft`, 'DELETE', null, cookie), { params: { topicId: id } })).status, 204);
   assert.equal((await detail.PATCH(request(`topics/${id}`, 'PATCH', { title: 'Updated', question: 'Question' }, cookie), { params: { topicId: id } })).status, 200);
   const privateCreated = await topics.POST(request('topics', 'POST', { title: 'Private', question: 'Secret', isPublic: false }, cookie));
   assert.equal(privateCreated.status, 201);

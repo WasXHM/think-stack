@@ -38,5 +38,11 @@ export function createTopicService(topicStore) {
     removeUnderstanding(topicId, understandingId, actorUsername) {
       return topicStore.deleteUnderstanding(topicId, understandingId, actorUsername);
     },
+    saveDraft(topicId, input, actorUsername) {
+      return topicStore.saveDraft(topicId, input, actorUsername);
+    },
+    removeDraft(topicId, actorUsername) {
+      return topicStore.deleteDraft(topicId, actorUsername);
+    },
   };
 }

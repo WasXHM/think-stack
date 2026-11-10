@@ -16,21 +16,26 @@ import { isUuid, validateUuid } from '../core/ids.js';
 import {
   assembleTopic,
   createExternalAnswerRecord,
+  createTopicDraftRecord,
   createTopicRecord,
   createUnderstandingRecord,
   deserializeExternalAnswer,
+  deserializeTopicDraft,
   deserializeTopic,
   deserializeUnderstanding,
   serializeExternalAnswer,
+  serializeTopicDraft,
   serializeTopic,
   serializeUnderstanding,
   toTopicListItem,
+  toTopicDraftSummary,
   updateExternalAnswerRecord,
   updateTopicRecord,
   updateUnderstandingRecord,
 } from '../models/index.js';
 
 const TOPIC_FILE = 'topic.json';
+const DRAFT_FILE = 'draft.json';
 const EXTERNAL_ANSWERS_DIRECTORY = 'external-answers';
 const UNDERSTANDINGS_DIRECTORY = 'understandings';
 
@@ -116,11 +121,19 @@ export class FileTopicStore {
           if (!this.#isTopicVisible(topic, viewerUsername)) {
             return null;
           }
-          const [externalAnswerCount, understandingCount] = await Promise.all([
+          const [externalAnswerCount, understandingCount, draft] = await Promise.all([
             this.#countCollection(topicId, EXTERNAL_ANSWERS_DIRECTORY),
             this.#countCollection(topicId, UNDERSTANDINGS_DIRECTORY),
+            topic.ownerUsername === viewerUsername
+              ? this.#readDraftWithStatus(topicId, topic)
+              : null,
           ]);
-          return { ...topic, externalAnswerCount, understandingCount };
+          return {
+            ...topic,
+            externalAnswerCount,
+            understandingCount,
+            draft: toTopicDraftSummary(draft),
+          };
         }));
         const topics = settledTopics.map((result) => {
           if (result.status === 'fulfilled') {
@@ -304,7 +317,15 @@ export class FileTopicStore {
           this.#readCollection(normalizedTopicId, EXTERNAL_ANSWERS_DIRECTORY),
           this.#readCollection(normalizedTopicId, UNDERSTANDINGS_DIRECTORY),
         ]);
-        return this.#decorateTopic(updated, externalAnswers, understandings);
+        if (Object.hasOwn(changes, 'title') || Object.hasOwn(changes, 'question') || Object.hasOwn(changes, 'isPublic')) {
+          await this.#deleteDraftIfMatches(normalizedTopicId, {
+            targetType: 'topic',
+            targetId: null,
+            operation: 'update',
+          });
+        }
+        const draft = await this.#readDraftWithStatus(normalizedTopicId, updated);
+        return this.#decorateTopic(updated, externalAnswers, understandings, draft);
       } catch (error) {
         throw this.#mapStorageError(error, `Unable to update topic ${normalizedTopicId}`);
       }
@@ -373,6 +394,57 @@ export class FileTopicStore {
     return this.#deleteChild(topicId, understandingId, UNDERSTANDINGS_DIRECTORY, actorUsername);
   }
 
+  async saveDraft(topicId, input, actorUsername) {
+    const normalizedTopicId = validateUuid(topicId, 'topicId');
+    return this.#enqueueOperation(async () => {
+      try {
+        const topic = await this.#readTopicRecord(normalizedTopicId);
+        this.#requireTopicOwner(topic, actorUsername);
+        if (input.targetType === 'topic') await this.#requireCategory(input.values.categoryId);
+        const targetUpdatedAt = await this.#draftTargetUpdatedAt(normalizedTopicId, topic, input);
+        if (targetUpdatedAt !== input.baseUpdatedAt) {
+          throw new AppError({
+            status: 409,
+            code: 'DRAFT_CONFLICT',
+            message: '正式内容已更新，请重新打开编辑器后再继续。',
+          });
+        }
+        const existing = await this.#readDraftRecord(normalizedTopicId);
+        const sameTarget = existing
+          && existing.targetType === input.targetType
+          && existing.targetId === input.targetId
+          && existing.operation === input.operation;
+        const updatedAt = nextTimestamp(existing?.updatedAt);
+        const draft = createTopicDraftRecord({
+          topicId: normalizedTopicId,
+          ...input,
+          locale: currentLocale(),
+          createdAt: sameTarget ? existing.createdAt : updatedAt,
+          updatedAt,
+        });
+        await this.#atomicWriteJson(this.#draftFile(normalizedTopicId), serializeTopicDraft(draft));
+        return { ...draft, isCurrent: true };
+      } catch (error) {
+        throw this.#mapStorageError(error, `Unable to save a draft for topic ${normalizedTopicId}`);
+      }
+    });
+  }
+
+  async deleteDraft(topicId, actorUsername) {
+    const normalizedTopicId = validateUuid(topicId, 'topicId');
+    return this.#enqueueOperation(async () => {
+      try {
+        const topic = await this.#readTopicRecord(normalizedTopicId);
+        this.#requireTopicOwner(topic, actorUsername);
+        await unlink(this.#draftFile(normalizedTopicId)).catch((error) => {
+          if (error.code !== 'ENOENT') throw error;
+        });
+      } catch (error) {
+        throw this.#mapStorageError(error, `Unable to delete a draft for topic ${normalizedTopicId}`);
+      }
+    });
+  }
+
   async #createChild(topicId, collection, values, actorUsername) {
     const normalizedTopicId = validateUuid(topicId, 'topicId');
 
@@ -406,6 +478,12 @@ export class FileTopicStore {
           await unlink(childFile).catch(() => {});
           throw error;
         }
+
+        await this.#deleteDraftIfMatches(normalizedTopicId, {
+          targetType: collection === EXTERNAL_ANSWERS_DIRECTORY ? 'external-answer' : 'understanding',
+          targetId: null,
+          operation: 'create',
+        });
 
         return child;
       } catch (error) {
@@ -443,6 +521,12 @@ export class FileTopicStore {
           await this.#writeChildRecord(collection, childFile, current).catch(() => {});
           throw error;
         }
+
+        await this.#deleteDraftIfMatches(normalizedTopicId, {
+          targetType: collection === EXTERNAL_ANSWERS_DIRECTORY ? 'external-answer' : 'understanding',
+          targetId: normalizedChildId,
+          operation: 'update',
+        });
 
         return updatedChild;
       } catch (error) {
@@ -482,6 +566,11 @@ export class FileTopicStore {
         }
         await unlink(tombstoneFile).catch(() => {});
         await unlink(this.#englishFile(childFile)).catch((error) => { if (error.code !== 'ENOENT') throw error; });
+        await this.#deleteDraftIfMatches(normalizedTopicId, {
+          targetType: collection === EXTERNAL_ANSWERS_DIRECTORY ? 'external-answer' : 'understanding',
+          targetId: normalizedChildId,
+          operation: 'update',
+        });
       } catch (error) {
         throw this.#mapStorageError(error, `Unable to delete content from topic ${normalizedTopicId}`);
       }
@@ -498,20 +587,80 @@ export class FileTopicStore {
   async #readCompleteTopic(topicId, viewerUsername) {
     const topic = await this.#readTopicRecord(topicId);
     this.#requireTopicVisible(topic, viewerUsername);
-    const [externalAnswers, understandings] = await Promise.all([
+    const [externalAnswers, understandings, draft] = await Promise.all([
       this.#readCollection(topicId, EXTERNAL_ANSWERS_DIRECTORY),
       this.#readCollection(topicId, UNDERSTANDINGS_DIRECTORY),
+      topic.ownerUsername === viewerUsername ? this.#readDraftWithStatus(topicId, topic) : null,
     ]);
 
-    return this.#decorateTopic(topic, externalAnswers, understandings);
+    return this.#decorateTopic(topic, externalAnswers, understandings, draft);
   }
 
-  #decorateTopic(topic, externalAnswers, understandings) {
-    return assembleTopic(
+  #decorateTopic(topic, externalAnswers, understandings, draft = null) {
+    return {
+      ...assembleTopic(
       topic,
       externalAnswers.sort(sortByCreation),
       understandings.sort(sortByCreation),
-    );
+      ),
+      draft,
+    };
+  }
+
+  async #draftTargetUpdatedAt(topicId, topic, draft) {
+    if (draft.targetType === 'topic' || draft.operation === 'create') return topic.updatedAt;
+    const collection = draft.targetType === 'external-answer'
+      ? EXTERNAL_ANSWERS_DIRECTORY
+      : UNDERSTANDINGS_DIRECTORY;
+    const target = await this.#readChildRecord(topicId, collection, draft.targetId);
+    return target.updatedAt;
+  }
+
+  async #readDraftRecord(topicId) {
+    const value = await this.#readJson(
+      this.#draftFile(topicId),
+      () => new NotFoundError('Topic draft not found', 'TOPIC_DRAFT_NOT_FOUND'),
+    ).catch((error) => {
+      if (error instanceof NotFoundError && error.code === 'TOPIC_DRAFT_NOT_FOUND') return null;
+      throw error;
+    });
+    if (!value) return null;
+    const draft = deserializeTopicDraft(value);
+    if (draft.topicId !== topicId) {
+      throw new AppError({
+        status: 500,
+        code: 'CORRUPT_RESOURCE',
+        message: 'A stored topic draft is linked incorrectly',
+        expose: false,
+      });
+    }
+    return draft;
+  }
+
+  async #readDraftWithStatus(topicId, topic) {
+    const draft = await this.#readDraftRecord(topicId);
+    if (!draft) return null;
+    try {
+      const targetUpdatedAt = await this.#draftTargetUpdatedAt(topicId, topic, draft);
+      return { ...draft, isCurrent: targetUpdatedAt === draft.baseUpdatedAt };
+    } catch (error) {
+      if (error instanceof NotFoundError) return { ...draft, isCurrent: false };
+      throw error;
+    }
+  }
+
+  async #deleteDraftIfMatches(topicId, target) {
+    const draft = await this.#readDraftRecord(topicId);
+    if (
+      draft
+      && draft.targetType === target.targetType
+      && draft.targetId === target.targetId
+      && draft.operation === target.operation
+    ) {
+      await unlink(this.#draftFile(topicId)).catch((error) => {
+        if (error.code !== 'ENOENT') throw error;
+      });
+    }
   }
 
   #isTopicVisible(topic, viewerUsername) {
@@ -775,6 +924,10 @@ export class FileTopicStore {
 
   #topicFile(topicId) {
     return join(this.#topicDirectory(topicId), TOPIC_FILE);
+  }
+
+  #draftFile(topicId) {
+    return join(this.#topicDirectory(topicId), DRAFT_FILE);
   }
 
   #collectionDirectory(topicId, collection) {

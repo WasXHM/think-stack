@@ -333,5 +333,18 @@ export default {
   "仅主题所属用户可以查看此主题。": "Only the topic owner can view this topic.",
   "所属用户": "Owner",
   "只有主题所属用户可以编辑此主题。": "Only the topic owner can edit this topic.",
-  "无法编辑此主题": "This topic cannot be edited"
+  "无法编辑此主题": "This topic cannot be edited",
+  "有草稿": "Draft available",
+  "有未提交的草稿": "You have an unsubmitted draft",
+  "主题内容草稿": "Topic draft",
+  "外部解答草稿": "External answer draft",
+  "理解记录草稿": "Understanding draft",
+  "{target}更新于 {time}，当前仍显示正式内容。": "{target} updated {time}. The published content is still shown here.",
+  "继续编辑草稿": "Continue editing draft",
+  "清除草稿": "Clear draft",
+  "正在清除…": "Clearing…",
+  "草稿没有清除，请重新尝试。": "The draft could not be cleared. Please try again.",
+  "草稿已自动保存于 {p0}": "Draft autosaved at {p0}",
+  "正在自动保存草稿…": "Autosaving draft…",
+  "正式内容已更新，请重新打开编辑器后再继续。": "The published content has changed. Reopen the editor before continuing."
 };

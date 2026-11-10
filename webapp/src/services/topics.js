@@ -44,6 +44,22 @@ export async function deleteTopic(topicId) {
   });
 }
 
+export async function saveTopicDraft(topicId, input, { signal } = {}) {
+  return unwrapData(
+    await apiRequest(`/topics/${encodeURIComponent(topicId)}/draft`, {
+      method: 'PUT',
+      body: input,
+      signal,
+    }),
+  );
+}
+
+export async function deleteTopicDraft(topicId) {
+  return apiRequest(`/topics/${encodeURIComponent(topicId)}/draft`, {
+    method: 'DELETE',
+  });
+}
+
 export async function createExternalAnswer(topicId, input) {
   return unwrapData(
     await apiRequest(`/topics/${encodeURIComponent(topicId)}/external-answers`, {

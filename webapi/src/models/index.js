@@ -22,3 +22,11 @@ export {
   deserializeUnderstanding,
   serializeUnderstanding,
 } from './Understanding.js';
+
+export {
+  DRAFT_TARGET_TYPES,
+  createTopicDraftRecord,
+  deserializeTopicDraft,
+  serializeTopicDraft,
+  toTopicDraftSummary,
+} from './TopicDraft.js';

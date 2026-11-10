@@ -127,5 +127,6 @@ export function toTopicListItem(topic) {
     updatedAt: topic.updatedAt,
     externalAnswerCount: topic.externalAnswerCount ?? topic.externalAnswers?.length ?? 0,
     understandingCount: topic.understandingCount ?? topic.understandings?.length ?? 0,
+    draft: topic.draft ?? null,
   };
 }

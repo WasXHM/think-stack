@@ -6,6 +6,7 @@ import {
   filterCreateUnderstanding,
   filterExternalAnswerParams,
   filterListTopicsQuery,
+  filterSaveTopicDraft,
   filterTopicParams,
   filterUnderstandingParams,
   filterUpdateExternalAnswer,
@@ -83,6 +84,22 @@ export async function updateUnderstanding(ctx) {
 export async function deleteUnderstanding(ctx) {
   const { topicId, understandingId } = filterUnderstandingParams(ctx.params);
   await ctx.topicService.removeUnderstanding(topicId, understandingId, ctx.state.user.username);
+  ctx.status = 204;
+}
+
+export async function saveTopicDraft(ctx) {
+  const { topicId } = filterTopicParams(ctx.params);
+  const draft = await ctx.topicService.saveDraft(
+    topicId,
+    filterSaveTopicDraft(ctx.request.body),
+    ctx.state.user.username,
+  );
+  ctx.body = { data: draft };
+}
+
+export async function deleteTopicDraft(ctx) {
+  const { topicId } = filterTopicParams(ctx.params);
+  await ctx.topicService.removeDraft(topicId, ctx.state.user.username);
   ctx.status = 204;
 }
 

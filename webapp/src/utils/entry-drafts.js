@@ -26,6 +26,9 @@ export function readEntryDraft(topicId, kind) {
       content: typeof value.content === 'string' ? value.content : '',
       sourceChoice: typeof value.sourceChoice === 'string' ? value.sourceChoice : '',
       customSource: typeof value.customSource === 'string' ? value.customSource : '',
+      savedAt: typeof value.savedAt === 'string' && Number.isFinite(Date.parse(value.savedAt))
+        ? new Date(value.savedAt).toISOString()
+        : null,
     };
   } catch {
     return null;

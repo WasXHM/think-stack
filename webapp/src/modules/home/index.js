@@ -58,6 +58,7 @@ function TopicRow({ topic, onDelete }) {
         <p className="topic-row__summary">{summary || t("尚未记录原始问题摘要。")}</p>
         <div className="topic-row__meta">
           {!topic.isPublic ? <span className="visibility-badge">{t("私有")}</span> : null}
+          {topic.draft?.isCurrent ? <span className="visibility-badge visibility-badge--draft">{t("有草稿")}</span> : null}
           <span>{answerCount} {t("个外部解答")}</span>
           <span aria-hidden="true">·</span>
           <span>{understandingCount} {t("条我的理解")}</span>

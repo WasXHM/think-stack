@@ -1475,6 +1475,48 @@ button:disabled {
   margin-top: 36px;
 }
 
+.draft-notice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  margin-top: 24px;
+  padding: 14px 16px;
+  border: 1px solid var(--calm-accent-200);
+  background: var(--calm-accent-50);
+}
+
+.draft-notice > svg {
+  color: var(--calm-accent-700);
+}
+
+.draft-notice strong,
+.draft-notice p {
+  margin: 0;
+}
+
+.draft-notice strong {
+  font-size: 13px;
+}
+
+.draft-notice p,
+.draft-save-status {
+  color: var(--calm-muted);
+  font-size: 12px;
+}
+
+.draft-notice p {
+  margin-top: 3px;
+}
+
+.draft-save-status {
+  margin: 0;
+}
+
+.draft-save-status--error {
+  color: var(--calm-danger-fg);
+}
+
 .topic-detail-main {
   min-width: 0;
 }
@@ -2614,6 +2656,23 @@ button:disabled {
   font-size: 10px;
   font-weight: 600;
   line-height: 16px;
+}
+
+.visibility-badge--draft {
+  border-color: var(--calm-accent-200);
+  background: var(--calm-accent-50);
+  color: var(--calm-accent-700);
+}
+
+@media (max-width: 600px) {
+  .draft-notice {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .draft-notice > .button {
+    grid-column: 1 / -1;
+    justify-self: stretch;
+  }
 }
 
 .topic-overview__identity {

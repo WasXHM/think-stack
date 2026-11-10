@@ -107,6 +107,25 @@ test('topic and child CRUD persists as independent text resources', async (t) =>
   const topicOnDisk = JSON.parse(await readFile(join(topicDirectory, 'topic.json'), 'utf8'));
   assert.equal(topicOnDisk.question, 'MCP 与普通 API 网关的边界是什么？\n\n```js\nconst tool = true;\n```');
 
+  const draft = await request(api.baseUrl, `/topics/${topic.id}/draft`, json('PUT', {
+    targetType: 'topic',
+    targetId: null,
+    operation: 'update',
+    baseUpdatedAt: topic.updatedAt,
+    values: {
+      title: '草稿标题',
+      question: '草稿问题',
+      categoryId: 'default',
+      isPublic: true,
+    },
+  }));
+  assert.equal(draft.response.status, 200);
+  assert.equal(draft.body.data.values.title, '草稿标题');
+  const formalWithDraft = await request(api.baseUrl, `/topics/${topic.id}`);
+  assert.equal(formalWithDraft.body.data.title, topic.title);
+  assert.equal(formalWithDraft.body.data.draft.values.title, '草稿标题');
+  assert.equal((await request(api.baseUrl, `/topics/${topic.id}/draft`, { method: 'DELETE' })).response.status, 204);
+
   const chatGptAnswer = await request(
     api.baseUrl,
     `/topics/${topic.id}/external-answers`,

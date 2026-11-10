@@ -1,6 +1,6 @@
-import { EditingLanguageNotice } from '../../i18n/LanguageProvider.js';
+import { EditingLanguageNotice, useLanguage } from '../../i18n/LanguageProvider.js';
 import { t } from '../../i18n/index.js';
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 
 import { Button, ButtonLink } from '../../components/Button.js';
@@ -13,8 +13,10 @@ import PageHeader from '../../components/PageHeader.js';
 import StatePanel, { DetailSkeleton } from '../../components/StatePanel.js';
 import { useToast } from '../../components/ToastProvider.js';
 import usePageTitle from '../../hooks/usePageTitle.js';
-import { createTopic, getTopic, updateTopic } from '../../services/topics.js';
+import useDraftAutosave from '../../hooks/useDraftAutosave.js';
+import { createTopic, deleteTopicDraft, getTopic, updateTopic } from '../../services/topics.js';
 import { getErrorMessage } from '../../utils/format.js';
+import { draftMatches, isCurrentTopicDraft } from '../../utils/topic-drafts.js';
 
 function validate(values) {
   const errors = {};
@@ -32,6 +34,7 @@ export default function TopicFormModule({ mode }) {
   const [searchParams] = useSearchParams();
   const { categories, selectedCategoryId, selectCategory } = useCategories();
   const { user } = useAuth();
+  const { locale, changeLanguage } = useLanguage();
   const requestedCategoryId = searchParams.get('categoryId') ?? selectedCategoryId;
   const { topicId } = useParams();
   const navigate = useNavigate();
@@ -44,7 +47,37 @@ export default function TopicFormModule({ mode }) {
   const [submitting, setSubmitting] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [serverDraft, setServerDraft] = useState(null);
+  const [clearingDraft, setClearingDraft] = useState(false);
   const mountedRef = useRef(true);
+
+  const currentDraft = useMemo(() => topic ? ({
+    targetType: 'topic',
+    targetId: null,
+    operation: 'update',
+    values,
+    baseUpdatedAt: topic.updatedAt,
+  }) : null, [topic, values]);
+  const formalDraft = useMemo(() => topic ? ({
+    targetType: 'topic',
+    targetId: null,
+    operation: 'update',
+    values: {
+      title: topic.title ?? '',
+      question: topic.question ?? '',
+      categoryId: topic.categoryId ?? 'default',
+      isPublic: topic.isPublic ?? true,
+    },
+    baseUpdatedAt: topic.updatedAt,
+  }) : null, [topic]);
+  const autosave = useDraftAutosave({
+    enabled: editing && loadStatus === 'success' && Boolean(topic),
+    topicId,
+    sessionKey: `topic:${topicId}`,
+    draft: currentDraft,
+    initialSavedDraft: serverDraft ?? formalDraft,
+    onSaved: setServerDraft,
+  });
 
   usePageTitle(editing ? (topic?.title ? t("编辑 {p0}", {
   p0: topic.title
@@ -71,8 +104,19 @@ export default function TopicFormModule({ mode }) {
           setLoadStatus('forbidden');
           return;
         }
+        const currentServerDraft = draftMatches(data.draft, {
+          targetType: 'topic',
+          targetId: null,
+          operation: 'update',
+        }) && isCurrentTopicDraft(data, data.draft) ? data.draft : null;
+        if (currentServerDraft && currentServerDraft.locale !== locale) {
+          changeLanguage(currentServerDraft.locale);
+          return;
+        }
+        const restoredDraft = currentServerDraft?.locale === locale ? currentServerDraft : null;
         setTopic(data);
-        setValues({
+        setServerDraft(restoredDraft);
+        setValues(restoredDraft?.values ?? {
           title: data.title ?? '',
           question: data.question ?? '',
           categoryId: data.categoryId ?? 'default',
@@ -87,7 +131,7 @@ export default function TopicFormModule({ mode }) {
         }
       });
     return () => controller.abort();
-  }, [editing, topicId, user?.username]);
+  }, [editing, locale, topicId, user?.username]);
 
   useEffect(() => {
     if (!editing) setValues((current) => ({ ...current, categoryId: requestedCategoryId }));
@@ -96,6 +140,22 @@ export default function TopicFormModule({ mode }) {
   function updateValue(field, value) {
     setValues((current) => ({ ...current, [field]: value }));
     setErrors((current) => ({ ...current, [field]: '' }));
+  }
+
+  async function clearDraft() {
+    if (!serverDraft || clearingDraft || submitting) return;
+    setClearingDraft(true);
+    setSubmitError('');
+    try {
+      await deleteTopicDraft(topicId);
+      setServerDraft(null);
+      setValues(formalDraft.values);
+      autosave.resetBaseline(formalDraft);
+    } catch (error) {
+      setSubmitError(getErrorMessage(error, t("草稿没有清除，请重新尝试。")));
+    } finally {
+      setClearingDraft(false);
+    }
   }
 
   async function submit(event) {
@@ -123,6 +183,7 @@ export default function TopicFormModule({ mode }) {
       if (!mountedRef.current) {
         return;
       }
+      setServerDraft(null);
       const savedId = saved?.id ?? topicId;
       selectCategory(saved?.categoryId ?? 'default');
       notify(editing ? t("主题已更新。") : t("新思考已创建。"));
@@ -236,6 +297,9 @@ export default function TopicFormModule({ mode }) {
           />
 
           {submitError ? <p className="form-error" role="alert">{submitError}</p> : null}
+          {autosave.status === 'saved' ? <p className="draft-save-status">{t("草稿已自动保存于 {p0}", { p0: new Date(autosave.savedAt).toLocaleTimeString() })}</p> : null}
+          {autosave.status === 'saving' ? <p className="draft-save-status">{t("正在自动保存草稿…")}</p> : null}
+          {autosave.status === 'error' ? <p className="draft-save-status draft-save-status--error" role="alert">{autosave.error}</p> : null}
           <div className="form-actions">
             <Button
               disabled={uploading}
@@ -247,6 +311,16 @@ export default function TopicFormModule({ mode }) {
             >
               {editing ? t("保存修改") : t("创建思考")}
             </Button>
+            {editing && serverDraft ? (
+              <Button
+                busy={clearingDraft}
+                busyLabel={t("正在清除…")}
+                disabled={uploading || submitting}
+                onClick={clearDraft}
+                size="large"
+                type="button"
+              >{t("清除草稿")}</Button>
+            ) : null}
             {submitting ? (
               <Button disabled size="large" type="button">{t("取消")}</Button>
             ) : (
