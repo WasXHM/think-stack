@@ -26,6 +26,7 @@ import {
 } from '../../services/topics.js';
 import { formatDate, getErrorMessage } from '../../utils/format.js';
 import { draftMatches, isCurrentTopicDraft, isNewerTopicDraft } from '../../utils/topic-drafts.js';
+import { isTopicOwner } from '../../utils/topic-ownership.js';
 
 function EntryActions({ canEdit, label, onEdit, onDelete }) {
   if (!canEdit) return null;
@@ -130,7 +131,7 @@ function TopicDetailContent() {
   const [error, setError] = useState('');
   const [editor, setEditor] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const canEdit = topic?.ownerUsername === user?.username;
+  const canEdit = isTopicOwner(topic, user);
   const newerDraft = canEdit && isNewerTopicDraft(topic, topic?.draft) ? topic.draft : null;
 
   usePageTitle(topic?.title ?? t("主题详情"));

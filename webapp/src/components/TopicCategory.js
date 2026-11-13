@@ -7,11 +7,12 @@ import { useToast } from './ToastProvider.js';
 import { Button } from './Button.js';
 import Drawer from './Drawer.js';
 import { updateTopic } from '../services/topics.js';
+import { isTopicOwner } from '../utils/topic-ownership.js';
 import { getErrorMessage } from '../utils/format.js';
 
 export default function TopicCategory({ topic, onSaved }) {
   const { user } = useAuth();
-  const canEdit = topic.ownerUsername === user?.username;
+  const canEdit = isTopicOwner(topic, user);
   const { categories, selectCategory, loadError, refresh } = useCategories();
   const { refreshTopicIndex } = useOutletContext();
   const { notify } = useToast();

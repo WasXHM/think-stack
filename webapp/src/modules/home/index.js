@@ -14,6 +14,7 @@ import { useToast } from '../../components/ToastProvider.js';
 import usePageTitle from '../../hooks/usePageTitle.js';
 import { deleteTopic, listTopics } from '../../services/topics.js';
 import { getErrorMessage, summarizeText } from '../../utils/format.js';
+import { isTopicOwner } from '../../utils/topic-ownership.js';
 
 function CountStrip({ topics, total, filtered }) {
   const externalAnswers = topics.reduce(
@@ -44,7 +45,7 @@ function CountStrip({ topics, total, filtered }) {
 
 function TopicRow({ topic, onDelete }) {
   const { user } = useAuth();
-  const canEdit = topic.ownerUsername === user?.username;
+  const canEdit = isTopicOwner(topic, user);
   const answerCount = Number(topic.externalAnswerCount ?? topic.externalAnswers?.length ?? 0);
   const understandingCount = Number(topic.understandingCount ?? topic.understandings?.length ?? 0);
   const summary = topic.questionSummary || summarizeText(topic.question);
@@ -271,7 +272,7 @@ export default function HomeModule() {
         ) : null}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={confirmDelete}
-        open={deleteTarget?.ownerUsername === user?.username}
+        open={isTopicOwner(deleteTarget, user)}
         title={deleteTarget ? t("删除“{p0}”？", {
   p0: deleteTarget.title
 }) : t("删除主题？")}
